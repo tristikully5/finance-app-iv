@@ -27,6 +27,7 @@ type EditableCardProps = {
   modalDescription?: string;
   modalHeaderContent?: React.ReactNode;
   cardHref?: string;
+  layout?: "default" | "row";
 };
 
 export default function EditableCard({
@@ -43,6 +44,7 @@ export default function EditableCard({
   modalDescription,
   modalHeaderContent,
   cardHref,
+  layout = "default",
 }: EditableCardProps) {
   const router = useRouter();
   const { open, openModal, closeModal } = useCardModal();
@@ -76,13 +78,13 @@ export default function EditableCard({
   return (
     <>
       <div
-        className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md ${isNavigable ? "cursor-pointer" : ""} ${className ?? ""}`}
+        className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md ${layout === "row" ? "sm:flex sm:items-center sm:gap-6" : ""} ${isNavigable ? "cursor-pointer" : ""} ${className ?? ""}`}
         onClick={isNavigable ? handleCardClick : undefined}
         onKeyDown={isNavigable ? handleCardKeyDown : undefined}
         tabIndex={cardHref ? 0 : undefined}
         role={cardHref ? "link" : undefined}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className={`flex items-start justify-between gap-3 ${layout === "row" ? "sm:w-64 sm:shrink-0" : ""}`}>
           <div className="flex min-w-0 items-start gap-3">
             {headerContent ? <div className="shrink-0 text-2xl">{headerContent}</div> : null}
             <div>
@@ -98,7 +100,7 @@ export default function EditableCard({
           ) : null}
         </div>
 
-        <div className="mt-4 space-y-3">{children}</div>
+        <div className={`mt-4 space-y-3 ${layout === "row" ? "sm:mt-0 sm:flex-1" : ""}`}>{children}</div>
       </div>
 
       {open ? (
