@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id Int @id @default(autoincrement())
+
+  name String
+
+  type String
+
+  currency String
+
+  icon String @default("/icons/icons8-home-48-png-8d685785-bf65-4df0-80d9-6520d7d8c7e1.png")
+
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  transactions Transaction[] @relation("FromAccountTransactions")
+
+  incomingTransfers Transaction[] @relation("ToAccountTransactions")
+}
+
+model CategoryTemplate {
+  id Int @id @default(autoincrement())
+
+  name String
+
+  type String
+
+  icon String @default("/icons/icons8-home-48-png-8d685785-bf65-4df0-80d9-6520d7d8c7e1.png")
+
+  color String @default("slate")
+
+  sortOrder Int @default(0)
+
+  archived Boolean @default(false)
+
+  defaultBudgetAmount Float @default(0)
+
+  defaultBudgetCurrency String @default("SGD")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  monthCategories MonthCategory[]
+}
+
+model Month {
+  id Int @id @default(autoincrement())
+
+  key String @unique
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  categories MonthCategory[]
+}
+
+model MonthCategory {
+  id Int @id @default(autoincrement())
+
+  monthId Int
+
+  templateCategoryId Int
+
+  name String
+
+  type String
+
+  icon String @default("/icons/icons8-home-48-png-8d685785-bf65-4df0-80d9-6520d7d8c7e1.png")
+
+  color String @default("slate")
+
+  sortOrder Int @default(0)
+
+  archived Boolean @default(false)
+
+  budgetAmount Float @default(0)
+
+  budgetCurrency String @default("SGD")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  month Month @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  templateCategory CategoryTemplate @relation(fields: [templateCategoryId], references: [id], onDelete: Restrict)
+
+  transactions Transaction[]
+
+  @@unique([monthId, templateCategoryId])
+
+  @@index([monthId, type, archived, sortOrder])
+}
+
+model Transaction {
+  id Int @id @default(autoincrement())
+
+  date DateTime
+
+  name String
+
+  description String?
+
+  tags String[] @default([])
+
+  amount Float
+
+  currency String
+
+  type String
+
+  accountId Int
+
+  toAccountId Int?
+
+  goalId Int?
+
+  monthCategoryId Int
+
+  account Account @relation("FromAccountTransactions", fields: [accountId], references: [id])
+
+  toAccount Account? @relation("ToAccountTransactions", fields: [toAccountId], references: [id])
+
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  monthCategory MonthCategory @relation(fields: [monthCategoryId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+
+  @@index([goalId])
+}
+
+model Goal {
+  id Int @id @default(autoincrement())
+
+  name String
+
+  icon String @default("/icons/icons8-home-48-png-8d685785-bf65-4df0-80d9-6520d7d8c7e1.png")
+
+  amount Float
+
+  currency String @default("SGD")
+
+  targetDate DateTime?
+
+  description String?
+
+  status String @default("Progressing")
+
+  amountUsed Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  allocations Transaction[]
+}
