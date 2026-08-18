@@ -195,7 +195,7 @@ export default function TransactionsTable({
       // ignore localStorage errors (e.g., privacy mode)
     }
   }, []);
-  const [typeFilter, setTypeFilter] = useState<"All" | "Income" | "Expense" | "Transfer">("All");
+  const [typeFilter, setTypeFilter] = useState<"All" | "Income" | "Expense" | "Transfer" | "Allocate">("All");
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
 
   const setViewModeAndPersist = (next: ViewMode) => {
@@ -358,6 +358,7 @@ export default function TransactionsTable({
                 <option value="Income">Income</option>
                 <option value="Expense">Expense</option>
                 <option value="Transfer">Transfer</option>
+                <option value="Allocate">Allocate</option>
               </select>
             </label>
             <QuickAddShell kind="transaction" accounts={accounts} categories={categories} goals={goals} buttonClassName="flex h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" buttonContent="＋ Add transaction" />
@@ -374,7 +375,7 @@ export default function TransactionsTable({
                       {orderedDays.length === 0 ? <div className="p-12 text-center text-sm text-slate-500">No transactions found for {monthLabel}.</div> : orderedDays.map((day) => {
                         const dayTransactions = groupedTransactions[day];
                         const dayDelta = dayTransactions.reduce((sum, item) => sum + transactionDelta(item), 0);
-                        const isTransferDay = dayTransactions.every((item) => item.type === "Transfer");
+                        const isTransferDay = dayTransactions.every((item) => item.type === "Transfer" || item.type === "Allocate");
                         const dayBalance = isTransferDay ? dayTransactions.reduce((sum, item) => sum + item.amount, 0) : Math.abs(dayDelta);
                         const dayBalanceClass = isTransferDay ? "text-slate-600" : dayDelta > 0 ? "text-emerald-600" : dayDelta < 0 ? "text-rose-600" : "text-slate-600";
                         const isOpen = expandedDays[day] ?? true;

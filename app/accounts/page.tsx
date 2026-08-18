@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 type BalanceRow = {
   date: Date;
   amount: number;
-  type: "Income" | "Expense" | "Transfer";
+  type: "Income" | "Expense" | "Transfer" | "Allocate";
   accountId: number;
   toAccountId: number | null;
   goalId: number | null;
@@ -82,6 +82,14 @@ export default async function AccountsPage() {
           const destination = acc[transaction.toAccountId] ?? { actual: 0, reserved: 0 };
           destination.actual += transaction.amount;
           acc[transaction.toAccountId] = destination;
+        }
+      }
+
+      if (transaction.type === "Allocate") {
+        if (transaction.goalId) {
+          current.reserved += transaction.amount;
+          acc[transaction.accountId] = current;
+          return acc;
         }
       }
 

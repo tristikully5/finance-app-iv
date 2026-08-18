@@ -21,7 +21,7 @@ export default function QuickAddPopover({ title, children, buttonClassName, butt
 
     const handleClick = (event: MouseEvent) => {
       const target = event.target;
-      if (target instanceof Element && target.closest("[data-icon-picker-menu]")) {
+      if (target instanceof Element && (target.closest("[data-icon-picker-menu]") || target.closest("[data-icon-select-menu]"))) {
         return;
       }
 

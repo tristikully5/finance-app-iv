@@ -8,6 +8,7 @@ export const defaultTransferIconValue = "/icons/icons8-right-arrow-48-png-4d311a
 export const defaultExpenseColorValue = "#f43f5e";
 export const defaultIncomeColorValue = "#10b981";
 export const defaultTransferColorValue = "#8b5cf6";
+export const defaultAllocateColorValue = "#0ea5e9";
 const defaultIconStorageKey = "finance:default-icon";
 const expenseIconStorageKey = "finance:expense-icon";
 const incomeIconStorageKey = "finance:income-icon";
@@ -38,14 +39,14 @@ export function isHexColor(value: string | null | undefined): value is string {
   return typeof value === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
 }
 
-export function getCategoryTypeDefaultColorValue(type: "Expense" | "Income" | "Transfer") {
+export function getCategoryTypeDefaultColorValue(type: "Expense" | "Income" | "Transfer" | "Allocate") {
   if (typeof window === "undefined") {
-    return type === "Expense" ? defaultExpenseColorValue : type === "Income" ? defaultIncomeColorValue : defaultTransferColorValue;
+    return type === "Expense" ? defaultExpenseColorValue : type === "Income" ? defaultIncomeColorValue : type === "Transfer" ? defaultTransferColorValue : defaultAllocateColorValue;
   }
 
   const storageKey = type === "Expense" ? expenseColorStorageKey : type === "Income" ? incomeColorStorageKey : transferColorStorageKey;
   const stored = window.localStorage.getItem(storageKey);
-  return isHexColor(stored) ? stored : type === "Expense" ? defaultExpenseColorValue : type === "Income" ? defaultIncomeColorValue : defaultTransferColorValue;
+  return isHexColor(stored) ? stored : type === "Expense" ? defaultExpenseColorValue : type === "Income" ? defaultIncomeColorValue : type === "Transfer" ? defaultTransferColorValue : defaultAllocateColorValue;
 }
 
 export function setDefaultIconValue(value: string | null | undefined) {
@@ -68,8 +69,8 @@ export function setCategoryTypeDefaultIconValue(type: "Expense" | "Income", valu
   return nextValue;
 }
 
-export function setCategoryTypeDefaultColorValue(type: "Expense" | "Income" | "Transfer", value: string | null | undefined) {
-  const nextValue = isHexColor(value) ? value : type === "Expense" ? defaultExpenseColorValue : type === "Income" ? defaultIncomeColorValue : defaultTransferColorValue;
+export function setCategoryTypeDefaultColorValue(type: "Expense" | "Income" | "Transfer" | "Allocate", value: string | null | undefined) {
+  const nextValue = isHexColor(value) ? value : type === "Expense" ? defaultExpenseColorValue : type === "Income" ? defaultIncomeColorValue : type === "Transfer" ? defaultTransferColorValue : defaultAllocateColorValue;
 
   if (typeof window !== "undefined") {
     window.localStorage.setItem(type === "Expense" ? expenseColorStorageKey : type === "Income" ? incomeColorStorageKey : transferColorStorageKey, nextValue);
