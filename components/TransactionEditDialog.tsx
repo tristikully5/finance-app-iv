@@ -153,6 +153,7 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
                   required
                 />
               </label>
+
             </>
           )}
           <label className="transaction-dialog-field">Name<input name="name" defaultValue={transaction.name} placeholder="Optional note" /></label>

@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import IconDisplay from "@/components/IconDisplay";
 import PageHeader from "@/components/PageHeader";
+import GoalBudgetMetrics from "@/components/GoalBudgetMetrics";
+import GoalBudgetChart from "@/components/GoalBudgetChart";
+import GoalBudgetSummary from "@/components/GoalBudgetSummary";
+import GoalBudgetTable from "@/components/GoalBudgetTable";
 import { defaultIconValue } from "@/lib/icon-options";
 
 export const dynamic = "force-dynamic";
@@ -157,11 +161,10 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Saved So Far" value={formatCurrency(savedSoFar, goal.currency)} detail={`${formatCurrency(goal.amount, goal.currency)} target`} accent="emerald" />
-        <MetricCard label="Total Added" value={formatCurrency(totalAdded, goal.currency)} detail={transactions.length > 0 ? `${transactions.filter((item) => item.amount > 0).length} contributions` : "No added funds yet"} accent="emerald" />
-        <MetricCard label="Total Used" value={formatCurrency(-totalUsed, goal.currency)} detail={`${transactions.filter((item) => item.amount < 0).length} withdrawals`} accent="rose" />
-        <MetricCard label="Target Date" value={targetDate ? formatDate(targetDate, { day: "2-digit", month: "short", year: "numeric" }) : "—"} detail={daysLeft !== null ? `${daysLeft} days left` : "No target set"} accent="slate" />
+
+      {/* Show amounts summary above allocations */}
+      <div>
+        <GoalBudgetSummary total={goal.amount} currency={goal.currency} allocated={totalAdded} spent={totalUsed} goalId={goal.id} />
       </div>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -220,6 +223,20 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
           </div>
         </div>
       </section>
+
+      {/* Budget allocation moved to bottom */}
+      <div className="mt-6">
+        <GoalBudgetChart goalId={goal.id} total={goal.amount} currency={goal.currency} />
+
+        <div className="mt-4">
+          <GoalBudgetMetrics total={goal.amount} currency={goal.currency} allocated={totalAdded} spent={totalUsed} goalId={goal.id} />
+        </div>
+
+        {/* Budget segments table */}
+        <div className="mt-6">
+          <GoalBudgetTable goalId={goal.id} total={goal.amount} currency={goal.currency} transactions={transactions.map((t) => ({ id: t.id, name: t.name, amount: t.amount }))} />
+        </div>
+      </div>
     </div>
   );
 }
