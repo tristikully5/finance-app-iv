@@ -99,12 +99,114 @@ body {
   gap: 0.75rem;
 }
 
+.transaction-card {
+  position: relative;
+  margin: 0.375rem 0.5rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 2px 8px -6px rgb(15 23 42 / 0.35);
+}
+
+.transaction-card::before,
+.transaction-calendar-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.25rem;
+  content: "";
+}
+
+.transaction-accent-income::before {
+  background: var(--transaction-income-color, #16a34a);
+}
+
+.transaction-accent-expense::before {
+  background: var(--transaction-expense-color, #e11d48);
+}
+
+.transaction-accent-transfer::before {
+  background: var(--transaction-transfer-color, #7c3aed);
+}
+
+.transaction-accent-allocate::before {
+  background: var(--transaction-allocate-color, #7c3aed);
+}
+
+.transaction-category-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.transaction-icon-circle {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--transaction-expense-color, #e11d48) 12%, white);
+}
+
+.transaction-accent-income .transaction-icon-circle {
+  background: color-mix(in srgb, var(--transaction-income-color, #16a34a) 12%, white);
+}
+
+.transaction-accent-transfer .transaction-icon-circle {
+  background: color-mix(in srgb, var(--transaction-transfer-color, #7c3aed) 12%, white);
+}
+
+.transaction-accent-allocate .transaction-icon-circle {
+  background: color-mix(in srgb, var(--transaction-allocate-color, #7c3aed) 12%, white);
+}
+
+.transaction-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.transaction-status-allocated {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.transaction-status-released {
+  background: #dcfce7;
+  color: #4d7c0f;
+}
+
+.transaction-status-partial,
+.transaction-status-spent {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.transaction-status-cancelled {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.transaction-calendar-card {
+  position: relative;
+  overflow: hidden;
+}
+
 .transaction-day-grid {
   grid-template-columns: 8.5rem minmax(12rem, 1.5fr) 6.5rem 1.25rem;
 }
 
 .transaction-row-grid {
-  grid-template-columns: 8.5rem minmax(12rem, 1.5fr) 6rem;
+  grid-template-columns: 8.5rem minmax(12rem, 1.5fr) 7.5rem;
 }
 
 .transaction-context-menu {

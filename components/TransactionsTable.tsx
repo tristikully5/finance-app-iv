@@ -6,7 +6,10 @@ import Link from "next/link";
 import TransactionEditDialog from "@/components/TransactionEditDialog";
 import IconDisplay from "@/components/IconDisplay";
 import { updateTransaction } from "@/app/transactions/actions";
-import { getCategoryTypeDefaultIconValue } from "@/lib/icon-options";
+import {
+  getCategoryTypeDefaultColorValue,
+  getCategoryTypeDefaultIconValue,
+} from "@/lib/icon-options";
 import { useMemo, useState, useEffect } from "react";
 
 type AccountOption = { id: number; name: string; icon: string | null };
@@ -218,6 +221,38 @@ function getTransactionTypeIcon(transaction: TransactionItem) {
   return transaction.category.icon || getCategoryTypeDefaultIconValue(transaction.type === "Income" ? "Income" : "Expense");
 }
 
+type TransactionAccentType = "Income" | "Expense" | "Transfer" | "Allocate";
+
+type TransactionColors = Record<TransactionAccentType, string>;
+
+function transactionAccentType(type: string): TransactionAccentType {
+  if (type === "Income" || type === "Transfer" || type === "Allocate") return type;
+  return "Expense";
+}
+
+function transactionAccentClass(type: string) {
+  return `transaction-accent-${transactionAccentType(type).toLowerCase()}`;
+}
+
+function allocationStatus(transaction: Pick<TransactionItem, "type" | "amount" | "allocationState" | "allocationOutcome" | "allocationOutcomeAmount">) {
+  if (transaction.type !== "Allocate") return null;
+  if (transaction.allocationState !== "Concluded") return "Allocated";
+  if (transaction.allocationOutcome === "Released") return "Released";
+  if (transaction.allocationOutcome === "Cancelled") return "Cancelled";
+  if (transaction.allocationOutcome === "Spent") {
+    return transaction.allocationOutcomeAmount === normalizedAmountForDisplay(transaction) ? "Spent" : "Partially spent";
+  }
+  return "Allocated";
+}
+
+function allocationStatusClass(status: string | null) {
+  if (status === "Released") return "transaction-status-released";
+  if (status === "Cancelled") return "transaction-status-cancelled";
+  if (status === "Partially spent") return "transaction-status-partial";
+  if (status === "Spent") return "transaction-status-spent";
+  return "transaction-status-allocated";
+}
+
 function getTypeFallbackIcon(type: string) {
   if (type === "Transfer") return getCategoryTypeDefaultIconValue("Transfer");
   if (type === "Allocate") return getCategoryTypeDefaultIconValue("Allocate");
@@ -290,6 +325,12 @@ export default function TransactionsTable({
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [transactionColors] = useState<TransactionColors>(() => ({
+    Income: getCategoryTypeDefaultColorValue("Income"),
+    Expense: getCategoryTypeDefaultColorValue("Expense"),
+    Transfer: getCategoryTypeDefaultColorValue("Transfer"),
+    Allocate: getCategoryTypeDefaultColorValue("Allocate"),
+  }));
 
   // Read persisted view mode after mount to avoid hydration mismatches.
   useEffect(() => {
@@ -311,6 +352,12 @@ export default function TransactionsTable({
       window.localStorage.setItem("finance:transactions-view", next);
     }
   };
+
+  useEffect(() => {
+    Object.entries(transactionColors).forEach(([type, color]) => {
+      document.documentElement.style.setProperty(`--transaction-${type.toLowerCase()}-color`, color);
+    });
+  }, [transactionColors]);
 
   const filteredTransactions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -502,8 +549,12 @@ export default function TransactionsTable({
                               const originalAllocationAmount = normalizedAmountForDisplay(transaction);
                               const hasSpentAmountChange = isSpentAllocation && transaction.allocationOutcomeAmount !== originalAllocationAmount;
                               const isConcludedAllocation = isReleasedAllocation || hasSpentAmountChange;
-                              return <div key={transaction.id} onClick={(event) => { const target = event.target as HTMLElement; if (target.closest("button, input, select, a")) return; setEditingTransaction(transaction); }} className="transaction-row-grid cursor-pointer items-center bg-white px-4 py-3 text-xs hover:bg-slate-50">
-                                <div className="min-w-0">
+                              const status = allocationStatus(transaction);
+                              return <div key={transaction.id} onClick={(event) => { const target = event.target as HTMLElement; if (target.closest("button, input, select, a")) return; setEditingTransaction(transaction); }} className={`transaction-row-grid transaction-card ${transactionAccentClass(transaction.type)} cursor-pointer items-center px-4 py-3 text-xs hover:bg-slate-50`}>
+                                <div className="transaction-category-cell min-w-0">
+                                  <span className="transaction-icon-circle">
+                                    <IconDisplay icon={getTransactionTypeIcon(transaction)} className="h-5 w-5 object-contain" />
+                                  </span>
                                   <InlineEditableCell
                                     value={String(transaction.monthCategoryId)}
                                     type="select"
@@ -511,8 +562,7 @@ export default function TransactionsTable({
                                       .filter((item) => item.type === transaction.type)
                                       .map((item) => ({ label: item.name, value: String(item.id), icon: item.icon || getTypeFallbackIcon(transaction.type) }))}
                                     onSave={(value) => makeUpdateForm(transaction, { monthCategoryId: Number(value) || transaction.monthCategoryId })}
-                                    className="min-w-0 truncate font-medium text-slate-700"
-                                    showOptionIcons
+                                    className="min-w-0 truncate font-semibold text-slate-800"
                                   />
                                 </div>
                                 <div className="min-w-0">
@@ -549,7 +599,8 @@ export default function TransactionsTable({
                                     <InlineEditableCell value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="mt-0.5 block text-[11px] text-slate-500" showOptionIcons />
                                   )}
                                 </div>
-                                <div className={`text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
+                                <div className={`flex flex-col items-end gap-1 text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
+                                  {status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
                                   <div className="flex items-center justify-end gap-1.5">
                                     <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className={`text-right ${isConcludedAllocation ? "line-through" : ""}`} />
                                     {hasSpentAmountChange ? <span className="whitespace-nowrap text-slate-700">{formatCurrencyLabel(transaction.allocationOutcomeAmount, transaction.currency)}</span> : null}
@@ -601,7 +652,7 @@ export default function TransactionsTable({
                               key={transaction.id}
                               type="button"
                               onClick={() => setEditingTransaction(transaction)}
-                              className={`w-full rounded-md border px-1.5 py-1 text-left text-[10px] shadow-sm transition hover:opacity-90 ${tone}`}
+                              className={`transaction-calendar-card ${transactionAccentClass(transaction.type)} w-full rounded-md border px-1.5 py-1 text-left text-[10px] shadow-sm transition hover:opacity-90 ${tone}`}
                             >
                               <div className="flex items-center gap-1.5 overflow-hidden">
                                 <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm bg-white/70">
