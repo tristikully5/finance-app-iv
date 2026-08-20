@@ -25,6 +25,9 @@ type TransactionItem = {
   toAccountId: number | null;
   goalId: number | null;
   monthCategoryId: number;
+  allocationState: string;
+  allocationOutcome: string | null;
+  allocationOutcomeAmount: number;
   account: AccountOption;
   toAccount: AccountOption | null;
   goal: GoalOption | null;
@@ -494,6 +497,9 @@ export default function TransactionsTable({
 
                             {isOpen ? dayTransactions.map((transaction) => {
                               const isIncome = transaction.type === "Income";
+                              const isReleasedAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Released";
+                              const isSpentAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent";
+                              const isConcludedAllocation = isReleasedAllocation || isSpentAllocation;
                               return <div key={transaction.id} onClick={(event) => { const target = event.target as HTMLElement; if (target.closest("button, input, select, a")) return; setEditingTransaction(transaction); }} className="transaction-row-grid cursor-pointer items-center bg-white px-4 py-3 text-xs hover:bg-slate-50">
                                 <div className="min-w-0">
                                   <InlineEditableCell
@@ -508,7 +514,7 @@ export default function TransactionsTable({
                                   />
                                 </div>
                                 <div className="min-w-0">
-                                  <InlineEditableCell value={transaction.name} onSave={(value) => makeUpdateForm(transaction, { name: value })} className="block truncate font-semibold text-slate-900" />
+                                  <InlineEditableCell value={transaction.name} onSave={(value) => makeUpdateForm(transaction, { name: value })} className={`block truncate font-semibold text-slate-900 ${isReleasedAllocation ? "line-through" : ""}`} />
                                   {transaction.description ? <div className="mt-0.5 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
                                   {transaction.tags && transaction.tags.length ? (
                                     <div className="mt-1 flex flex-wrap gap-1">
@@ -541,7 +547,12 @@ export default function TransactionsTable({
                                     <InlineEditableCell value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="mt-0.5 block text-[11px] text-slate-500" showOptionIcons />
                                   )}
                                 </div>
-                                <div className={`text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}><InlineEditableCell value={String(normalizedAmountForDisplay(transaction))} type="number" displayValue={formatCurrencyLabel(normalizedAmountForDisplay(transaction), transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right" /> </div>
+                                <div className={`text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <InlineEditableCell value={String(normalizedAmountForDisplay(transaction))} type="number" displayValue={formatCurrencyLabel(normalizedAmountForDisplay(transaction), transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className={`text-right ${isConcludedAllocation ? "line-through" : ""}`} />
+                                    {isSpentAllocation ? <span className="whitespace-nowrap text-slate-700">{formatCurrencyLabel(transaction.allocationOutcomeAmount, transaction.currency)}</span> : null}
+                                  </div>
+                                </div>
                             </div>;
                           }) : null}
                         </div>
@@ -578,6 +589,8 @@ export default function TransactionsTable({
                         {dayTransactions.slice(0, 3).map((transaction) => {
                           const isIncome = transaction.type === "Income";
                           const isTransfer = transaction.type === "Transfer";
+                          const isReleasedAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Released";
+                          const isSpentAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent";
                           const tone = isIncome ? "bg-emerald-100 text-emerald-800 border-emerald-200" : isTransfer ? "bg-violet-100 text-violet-800 border-violet-200" : "bg-rose-100 text-rose-700 border-rose-200";
 
                           return (
@@ -591,11 +604,14 @@ export default function TransactionsTable({
                                 <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm bg-white/70">
                                   {isTransfer ? <TransferArrowIcon /> : <IconDisplay icon={transaction.category.icon} className="h-3 w-3 object-contain" />}
                                 </span>
-                                <span className="truncate font-semibold">{transaction.name}</span>
+                                <span className={`truncate font-semibold ${isReleasedAllocation ? "line-through" : ""}`}>{transaction.name}</span>
                               </div>
                               <div className="mt-1 flex items-center justify-between gap-1 text-[9px] font-medium">
                                 <span className="truncate">{transaction.account.name}</span>
-                                <span className={isIncome ? "text-emerald-900" : "text-rose-700"}>{transaction.type === "Income" ? formatCurrencyNumber(transaction.amount, transaction.currency) : formatCurrencyNumber(-transaction.amount, transaction.currency)}</span>
+                                <span className={`flex shrink-0 items-center gap-1 ${isIncome ? "text-emerald-900" : "text-rose-700"}`}>
+                                  <span className={isReleasedAllocation || isSpentAllocation ? "line-through" : ""}>{transaction.type === "Income" ? formatCurrencyNumber(transaction.amount, transaction.currency) : formatCurrencyNumber(-transaction.amount, transaction.currency)}</span>
+                                  {isSpentAllocation ? <span>{formatCurrencyNumber(-transaction.allocationOutcomeAmount, transaction.currency)}</span> : null}
+                                </span>
                               </div>
                             </button>
                           );

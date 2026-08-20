@@ -31,6 +31,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
     toAccountId: number | null;
     goalId: number | null;
     monthCategoryId: number;
+    allocationState: string;
+    allocationOutcome: string | null;
+    allocationOutcomeAmount: number;
     account: { id: number; name: string; icon: string | null };
     toAccount: { id: number; name: string; icon: string | null } | null;
     goal: { id: number; name: string; icon: string | null } | null;
@@ -62,6 +65,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
           toAccountId: true,
           goalId: true,
           monthCategoryId: true,
+          allocationState: true,
+          allocationOutcome: true,
+          allocationOutcomeAmount: true,
           account: { select: { id: true, name: true, icon: true } },
           monthCategory: { select: { id: true, name: true, type: true, icon: true } },
           goal: { select: { id: true, name: true, icon: true } },
@@ -90,6 +96,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
       toAccountId: transaction.toAccountId,
       goalId: transaction.goalId,
       monthCategoryId: transaction.monthCategoryId,
+      allocationState: transaction.allocationState,
+      allocationOutcome: transaction.allocationOutcome,
+      allocationOutcomeAmount: transaction.allocationOutcomeAmount,
       account: { id: transaction.account.id, name: transaction.account.name, icon: transaction.account.icon ?? null },
       toAccount:
         transaction.toAccountId && accountsById.get(transaction.toAccountId)
