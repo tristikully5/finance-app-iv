@@ -528,10 +528,15 @@ export default function TransactionsTable({
                     <div className="min-w-[640px]">
                       {orderedDays.length === 0 ? <div className="p-12 text-center text-sm text-slate-500">No transactions found for {monthLabel}.</div> : orderedDays.map((day) => {
                         const dayTransactions = groupedTransactions[day];
-                        const dayCashDelta = dayTransactions.filter((item) => item.type === "Income" || item.type === "Expense").reduce((sum, item) => sum + transactionDelta(item), 0);
-                        const dayNonCashTotal = dayTransactions.filter((item) => item.type === "Transfer" || item.type === "Allocate").reduce((sum, item) => sum + Math.abs(item.amount), 0);
-                        const dayBalance = Math.abs(dayCashDelta);
-                        const dayBalanceClass = dayCashDelta > 0 ? "text-emerald-600" : dayCashDelta < 0 ? "text-rose-600" : "text-slate-600";
+                        const cashTransactions = dayTransactions.filter((item) => item.type === "Income" || item.type === "Expense");
+                        const nonCashTransactions = dayTransactions.filter((item) => item.type === "Transfer" || item.type === "Allocate");
+                        const dayCashDelta = cashTransactions.reduce((sum, item) => sum + transactionDelta(item), 0);
+                        const dayNonCashTotal = nonCashTransactions.reduce((sum, item) => sum + Math.abs(item.amount), 0);
+                        const hasCashActivity = cashTransactions.length > 0;
+                        const hasNonCashActivity = nonCashTransactions.length > 0;
+                        const hasSeparateTotals = hasCashActivity && hasNonCashActivity;
+                        const dayBalance = hasCashActivity ? Math.abs(dayCashDelta) : dayNonCashTotal;
+                        const dayBalanceClass = hasCashActivity ? dayCashDelta > 0 ? "text-emerald-600" : dayCashDelta < 0 ? "text-rose-600" : "text-slate-600" : "text-slate-600";
                         const isOpen = expandedDays[day] ?? true;
 
                         return (
@@ -539,8 +544,8 @@ export default function TransactionsTable({
                             <button type="button" onClick={() => setExpandedDays((current) => ({ ...current, [day]: !isOpen }))} className="transaction-day-grid w-full items-center bg-slate-50 px-4 py-2.5 text-left hover:bg-slate-100">
                               <span className="flex items-center gap-2 text-xs font-semibold text-slate-800"><span className={`text-[10px] transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span><CalendarIcon />{formatDay(`${day}T12:00:00`)}</span>
                               <span />
-                              <span className="col-start-3 justify-self-end text-right text-xs font-medium text-slate-400" title="Transfers and allocations" aria-label="Transfers and allocations total">{dayNonCashTotal > 0 ? formatCurrencyLabel(dayNonCashTotal, dayTransactions[0]?.currency ?? "SGD") : null}</span>
-                              <span className={`col-start-4 justify-self-end text-right text-xs font-semibold ${dayBalanceClass}`} title="Income and expenses net" aria-label="Income and expenses net">{formatCurrencyLabel(dayBalance, dayTransactions[0]?.currency ?? "SGD")}</span>
+                              {hasSeparateTotals ? <span className="col-start-3 justify-self-end text-right text-xs font-semibold text-slate-600" title="Transfers and allocations" aria-label="Transfers and allocations total">{formatCurrencyLabel(dayNonCashTotal, dayTransactions[0]?.currency ?? "SGD")}</span> : <span />}
+                              <span className={`col-start-4 justify-self-end text-right text-xs font-semibold ${dayBalanceClass}`} title={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"} aria-label={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"}>{formatCurrencyLabel(dayBalance, dayTransactions[0]?.currency ?? "SGD")}</span>
                             </button>
 
                             {isOpen ? dayTransactions.map((transaction) => {
