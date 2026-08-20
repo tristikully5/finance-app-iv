@@ -537,8 +537,7 @@ export default function TransactionsTable({
                         return (
                           <div key={day} className="relative border-b border-slate-100 last:border-b-0">
                             <button type="button" onClick={() => setExpandedDays((current) => ({ ...current, [day]: !isOpen }))} className="transaction-day-grid w-full items-center bg-slate-50 px-4 py-2.5 text-left hover:bg-slate-100">
-                              <span className="flex items-center gap-2 text-xs font-semibold text-slate-800"><span className={`text-[10px] transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span><CalendarIcon />{formatDay(`${day}T12:00:00`)}</span>
-                              <span />
+                              <span className="col-span-2 flex items-center justify-self-end gap-2 text-xs font-semibold text-slate-800"><span className={`text-[10px] transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span><CalendarIcon />{formatDay(`${day}T12:00:00`)}</span>
                               <span className="col-start-3 justify-self-end text-right text-xs font-medium text-slate-400" title="Transfers and allocations" aria-label="Transfers and allocations total">{dayNonCashTotal > 0 ? formatCurrencyLabel(dayNonCashTotal, dayTransactions[0]?.currency ?? "SGD") : null}</span>
                               <span className={`col-start-4 justify-self-end text-right text-xs font-semibold ${dayBalanceClass}`} title="Income and expenses net" aria-label="Income and expenses net">{formatCurrencyLabel(dayBalance, dayTransactions[0]?.currency ?? "SGD")}</span>
                             </button>
