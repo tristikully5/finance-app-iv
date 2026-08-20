@@ -531,7 +531,7 @@ export default function TransactionsTable({
                         const cashTransactions = dayTransactions.filter((item) => item.type === "Income" || item.type === "Expense");
                         const nonCashTransactions = dayTransactions.filter((item) => item.type === "Transfer" || item.type === "Allocate");
                         const dayCashDelta = cashTransactions.reduce((sum, item) => sum + transactionDelta(item), 0);
-                        const dayNonCashTotal = nonCashTransactions.reduce((sum, item) => sum + Math.abs(item.amount), 0);
+                        const dayNonCashTotal = nonCashTransactions.reduce((sum, item) => sum + Math.abs(item.type === "Allocate" && item.allocationState === "Concluded" ? item.allocationOutcomeAmount : item.amount), 0);
                         const hasCashActivity = cashTransactions.length > 0;
                         const hasNonCashActivity = nonCashTransactions.length > 0;
                         const hasSeparateTotals = hasCashActivity && hasNonCashActivity;
