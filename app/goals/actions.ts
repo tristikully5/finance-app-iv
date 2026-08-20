@@ -3,8 +3,6 @@
 import { prisma } from "@/lib/prisma";
 import { defaultIconValue, isCustomIcon } from "@/lib/icon-options";
 import { revalidatePath } from "next/cache";
-import { buildMonthKey } from "@/lib/budgets";
-import { ensureMonthSnapshot } from "@/lib/month-snapshots";
 
 function parseName(value: FormDataEntryValue | null) {
   if (typeof value !== "string") {
@@ -111,10 +109,9 @@ export async function deleteGoal(formData: FormData) {
 
 export async function concludeGoal(formData: FormData) {
   const goalId = Number(formData.get("goalId"));
-  const accountId = Number(formData.get("accountId"));
   const actualSpent = Math.round(Number(formData.get("actualSpent")) || 0);
 
-  if (!goalId || !accountId) {
+  if (!goalId) {
     throw new Error("Missing required parameters for conclude.");
   }
 
@@ -122,11 +119,12 @@ export async function concludeGoal(formData: FormData) {
     throw new Error("Actual spent must be greater than zero.");
   }
 
-  // run transactional work
   await prisma.$transaction(async (tx) => {
-      const goal = await tx.goal.findUnique({ where: { id: goalId } });
+    const goal = await tx.goal.findUnique({ where: { id: goalId } });
     if (!goal) throw new Error("Goal not found.");
-      if (goal.status === "Concluded" || goal.status === "Completed" || goal.status === "Complete") throw new Error("Goal already concluded or completed.");
+    if (goal.status === "Concluded" || goal.status === "Completed" || goal.status === "Complete") {
+      throw new Error("Goal already concluded or completed.");
+    }
 
     const allocations = await tx.transaction.findMany({ where: { goalId }, orderBy: { date: "asc" } });
     const totalAllocated = allocations.reduce((s, a) => s + (a.amount > 0 ? a.amount : 0), 0);
@@ -135,60 +133,18 @@ export async function concludeGoal(formData: FormData) {
       throw new Error("Actual spent exceeds allocated total. Please top up allocations before concluding.");
     }
 
-    // ensure month snapshot and find an Expense monthCategory for today
-    const today = new Date();
-    const monthKey = buildMonthKey(today.getFullYear(), today.getMonth() + 1);
-    await ensureMonthSnapshot(monthKey);
-    const month = await tx.month.findUnique({ where: { key: monthKey } });
-
-      // prefer provided monthCategoryId if it belongs to this month; otherwise fall back to a month's Expense category
-      let providedMonthCategoryId = Number(formData.get("monthCategoryId") || 0);
-      let finalMonthCategoryId: number | undefined;
-
-      if (providedMonthCategoryId && month) {
-        const providedCat = await tx.monthCategory.findUnique({ where: { id: providedMonthCategoryId } });
-        if (providedCat && providedCat.monthId === month.id && providedCat.type === "Expense") {
-          finalMonthCategoryId = providedCat.id;
-        }
-      }
-
-      if (!finalMonthCategoryId && month) {
-        const monthCategory = await tx.monthCategory.findFirst({ where: { monthId: month.id, type: "Expense" } });
-        finalMonthCategoryId = monthCategory?.id ?? undefined;
-      }
-
-      if (!finalMonthCategoryId) {
-        throw new Error("No expense category is available for the current month.");
-      }
-
-      // create single expense transaction for actualSpent
-      await tx.transaction.create({
-        data: {
-          date: today,
-          name: `Conclude Goal: ${goal.name}`,
-          description: `Concluded goal ${goal.name}`,
-          tags: [],
-          amount: Math.abs(actualSpent),
-          currency: goal.currency,
-          type: "Expense",
-          accountId: accountId,
-          goalId: goalId,
-          monthCategoryId: finalMonthCategoryId,
-        },
-      });
-
-    // unlink allocations by clearing their goalId (mark as cleared)
-    const allocationIds = allocations.map((a) => a.id);
-    for (const id of allocationIds) {
+    for (const allocation of allocations) {
       try {
-        await tx.transaction.update({ where: { id }, data: { goalId: null } });
+        await tx.transaction.update({ where: { id: allocation.id }, data: { goalId: null } });
       } catch (e) {
         // ignore
       }
     }
 
-    // mark goal concluded and set amountUsed to the actual spent amount (positive)
-    await tx.goal.update({ where: { id: goalId }, data: { status: "Concluded", amountUsed: actualSpent } });
+    await tx.goal.update({
+      where: { id: goalId },
+      data: { status: "Concluded", amountUsed: actualSpent },
+    });
   });
 
   revalidatePath(`/goals/${goalId}`);

@@ -3,12 +3,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 
-export default function ConcludeGoal({ action, goalId, goalName, allocated, spentProp, currency, accounts, categories, isConcluded }: { action: any; goalId: number; goalName: string; allocated: number; spentProp: number; currency?: string; accounts: { id: number; name: string }[]; categories: { id: number; name: string }[]; isConcluded?: boolean }) {
+export default function ConcludeGoal({ action, goalId, goalName, allocated, spentProp, currency, isConcluded }: { action: any; goalId: number; goalName: string; allocated: number; spentProp: number; currency?: string; isConcluded?: boolean }) {
   const [open, setOpen] = useState(false);
   const [actual, setActual] = useState<number>(Math.max(0, Math.round(spentProp || 0)));
   const [actualsSum, setActualsSum] = useState<number>(0);
-  const [selectedAccount, setSelectedAccount] = useState<number>(accounts && accounts.length > 0 ? accounts[0].id : 0);
-  const [selectedCategory, setSelectedCategory] = useState<number>(categories && categories.length > 0 ? categories[0].id : 0);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -55,26 +53,14 @@ export default function ConcludeGoal({ action, goalId, goalName, allocated, spen
       setError("Actual spent exceeds allocated total. Please top up allocations before concluding.");
       return;
     }
-    if (!selectedAccount) {
-      setError("Please select an account to charge the expense to.");
-      return;
-    }
     setError(null);
 
-    // submit the server action form
     if (formRef.current) {
       setSubmitting(true);
-      // set hidden inputs
       const f = formRef.current as HTMLFormElement;
       const actualInput = f.querySelector("input[name='actualSpent']") as HTMLInputElement;
-      const accountInput = f.querySelector("input[name='accountId']") as HTMLInputElement;
-      const monthInput = f.querySelector("input[name='monthCategoryId']") as HTMLInputElement;
       if (actualInput) actualInput.value = String(actual);
-      if (accountInput) accountInput.value = String(selectedAccount);
-      if (monthInput) monthInput.value = String(selectedCategory);
-      // submit
       (f as any).requestSubmit?.();
-      // close the modal after submitting so the UI returns to the page
       setOpen(false);
     }
   }
@@ -91,12 +77,10 @@ export default function ConcludeGoal({ action, goalId, goalName, allocated, spen
         <form ref={formRef} action={action}>
           <input type="hidden" name="goalId" value={String(goalId)} />
           <input type="hidden" name="actualSpent" value={String(actual)} />
-          <input type="hidden" name="accountId" value={String(selectedAccount)} />
-          <input type="hidden" name="monthCategoryId" value={String(selectedCategory)} />
         </form>
 
         <div className="space-y-4">
-          <p className="text-sm text-slate-700">This will finalize the goal and create a single expense for the final amount. All allocations reserved for this goal will be cleared (unlinked) but account actual balances will only be affected by the created expense.</p>
+          <p className="text-sm text-slate-700">This will finalize the goal and clear all allocations reserved for it. The goal will be marked concluded without creating a separate expense transaction.</p>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md border border-slate-100 bg-white p-3">
@@ -105,7 +89,7 @@ export default function ConcludeGoal({ action, goalId, goalName, allocated, spen
             </div>
 
             <div className="rounded-md border border-slate-100 bg-white p-3">
-              <div className="text-xs text-slate-500">Final expense (actual)</div>
+              <div className="text-xs text-slate-500">Final amount</div>
               <div className="mt-1 font-semibold text-rose-700">{new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "SGD", minimumFractionDigits: 2 }).format(actual)}</div>
             </div>
           </div>
@@ -113,24 +97,6 @@ export default function ConcludeGoal({ action, goalId, goalName, allocated, spen
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Final amount</label>
             <input type="number" value={actual} onChange={(e) => setActual(Math.max(0, Math.round(Number(e.target.value) || 0)))} className="w-40 rounded border border-slate-200 px-2 py-1 text-sm" />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Charge account</label>
-            <select value={selectedAccount} onChange={(e) => setSelectedAccount(Number(e.target.value))} className="w-full rounded border border-slate-200 px-2 py-1 text-sm">
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Expense category</label>
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(Number(e.target.value))} className="w-full rounded border border-slate-200 px-2 py-1 text-sm">
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
           </div>
 
           {error ? <div className="text-xs text-rose-600">{error}</div> : null}

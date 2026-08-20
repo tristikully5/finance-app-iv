@@ -104,35 +104,57 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
           {selectedType === "Transfer" || selectedType === "Allocate" ? (
             <>
               <label className="transaction-dialog-field">Category<input value={selectedType === "Transfer" ? "Transfer (auto)" : "Allocate (auto)"} disabled /></label>
-              <label className="transaction-dialog-field">From
-                <IconSelect
-                  name="accountId"
-                  value={selectedAccountId}
-                  onChange={(v) => setSelectedAccountId(v)}
-                  options={accounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon }))}
-                  required
-                />
-              </label>
               {selectedType === "Transfer" ? (
-                <label className="transaction-dialog-field">Destination
-                  <IconSelect
-                    name="toAccountId"
-                    value={selectedToAccountId}
-                    onChange={(v) => { setSelectedToAccountId(v); setSelectedGoalId(""); }}
-                    options={[{ value: "", label: "To account" }].concat(destinationAccounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-                    required
-                  />
-                </label>
+                <>
+                  <label className="transaction-dialog-field">From
+                    <IconSelect
+                      name="accountId"
+                      value={selectedAccountId}
+                      onChange={(v) => setSelectedAccountId(v)}
+                      options={accounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon }))}
+                      required
+                    />
+                  </label>
+                  <label className="transaction-dialog-field">Destination
+                    <IconSelect
+                      name="toAccountId"
+                      value={selectedToAccountId}
+                      onChange={(v) => { setSelectedToAccountId(v); setSelectedGoalId(""); }}
+                      options={[{ value: "", label: "To account" }].concat(destinationAccounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                      required
+                    />
+                  </label>
+                </>
               ) : (
-                <label className="transaction-dialog-field">Goal
-                  <IconSelect
-                    name="goalId"
-                    value={selectedGoalId}
-                    onChange={(v) => { setSelectedGoalId(v); setSelectedToAccountId(""); }}
-                    options={[{ value: "", label: "Select goal" }].concat(goals.map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
-                    required
-                  />
-                </label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</div>
+                      <IconSelect
+                        name="accountId"
+                        value={selectedAccountId}
+                        onChange={(v) => setSelectedAccountId(v)}
+                        options={accounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon }))}
+                        required
+                      />
+                    </div>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                        <path d="M1.75 8h10.5M9.75 4.75L13 8l-3.25 3.25" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Goal</div>
+                      <IconSelect
+                        name="goalId"
+                        value={selectedGoalId}
+                        onChange={(v) => { setSelectedGoalId(v); setSelectedToAccountId(""); }}
+                        options={[{ value: "", label: "Select goal" }].concat(goals.map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
             </>
           ) : (

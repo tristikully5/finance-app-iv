@@ -4,7 +4,6 @@ import InlineEditableCell from "@/components/InlineEditableCell";
 import QuickAddShell from "@/app/components/QuickAddShell";
 import Link from "next/link";
 import TransactionEditDialog from "@/components/TransactionEditDialog";
-import ConcludedGoalDialog from "@/components/ConcludedGoalDialog";
 import IconDisplay from "@/components/IconDisplay";
 import { updateTransaction } from "@/app/transactions/actions";
 import { getCategoryTypeDefaultIconValue } from "@/lib/icon-options";
@@ -519,19 +518,21 @@ export default function TransactionsTable({
                                     </div>
                                   ) : null}
 
-                                  {transaction.type === "Transfer" ? (
+                                  {(transaction.type === "Transfer" || transaction.type === "Allocate") ? (
                                     <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
                                       <InlineEditableCell noFullWidth value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="min-w-0 truncate text-[11px] text-slate-500" showOptionIcons />
                                       <span className="mx-1"><TransferArrowIcon /></span>
                                       <InlineEditableCell
                                         noFullWidth
-                                        value={destinationValue(transaction)}
+                                        value={transaction.type === "Allocate" ? `goal:${transaction.goalId ?? ""}` : destinationValue(transaction)}
                                         type="select"
-                                        options={[
+                                        options={transaction.type === "Allocate" ? [
+                                          ...goals.map((item) => ({ label: item.name, value: `goal:${item.id}`, icon: item.icon }))
+                                        ] : [
                                           ...accounts.filter((item) => item.id !== transaction.accountId).map((item) => ({ label: item.name, value: `account:${item.id}`, icon: item.icon })),
                                           ...goals.map((item) => ({ label: item.name, value: `goal:${item.id}`, icon: item.icon }))
                                         ]}
-                                        onSave={(value) => makeUpdateForm(transaction, destinationOverrides(value))}
+                                        onSave={(value) => makeUpdateForm(transaction, transaction.type === "Allocate" ? { goalId: Number(value.replace("goal:", "")) || null, toAccountId: null } : destinationOverrides(value))}
                                         className="min-w-0 truncate text-[11px] text-slate-500"
                                         showOptionIcons
                                       />
@@ -680,11 +681,7 @@ export default function TransactionsTable({
       </section>
 
       {editingTransaction ? (
-        (editingTransaction.type === "Expense" && editingTransaction.goalId && String(editingTransaction.name || "").startsWith("Conclude Goal:")) ? (
-          <ConcludedGoalDialog transaction={editingTransaction} onClose={() => setEditingTransaction(null)} />
-        ) : (
-          <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} onClose={() => setEditingTransaction(null)} />
-        )
+        <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} onClose={() => setEditingTransaction(null)} />
       ) : null}
     </>
   );

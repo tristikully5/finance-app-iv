@@ -257,7 +257,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
 
         {/* Conclude action */}
         <div className="mt-6">
-          <ConcludeGoal action={concludeGoal} goalId={goal.id} goalName={goal.name} allocated={totalAdded} spentProp={totalUsed} currency={goal.currency} accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} categories={expenseCategories} isConcluded={goal.status === 'Concluded'} />
+          <ConcludeGoal action={concludeGoal} goalId={goal.id} goalName={goal.name} allocated={totalAdded} spentProp={totalUsed} currency={goal.currency} isConcluded={goal.status === 'Concluded'} />
         </div>
       </div>
     </div>

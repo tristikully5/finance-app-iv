@@ -306,35 +306,56 @@ export function QuickAddTransactionForm({
           <FieldRow label="Category">
             <input value={selectedType === "Transfer" ? "Transfer (auto)" : "Allocate (auto)"} disabled className="w-full rounded border border-slate-200 bg-slate-50 p-2 text-slate-500" />
           </FieldRow>
-          <FieldRow label="From">
-            <IconSelect
-              name="fromAccountId"
-              value={fromAccountId}
-              onChange={(v) => setFromAccountId(v)}
-              options={[{ value: "", label: "Select source account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-              required
-            />
-          </FieldRow>
           {selectedType === "Transfer" ? (
-            <FieldRow label="Destination">
-              <IconSelect
-                name="toAccountId"
-                value={selectedToAccountId}
-                onChange={(v) => { setSelectedToAccountId(v); setSelectedGoalId(""); }}
-                options={[{ value: "", label: "To account" }].concat((destinationAccounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-                required
-              />
-            </FieldRow>
+            <>
+              <FieldRow label="From">
+                <IconSelect
+                  name="fromAccountId"
+                  value={fromAccountId}
+                  onChange={(v) => setFromAccountId(v)}
+                  options={[{ value: "", label: "Select source account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                  required
+                />
+              </FieldRow>
+              <FieldRow label="Destination">
+                <IconSelect
+                  name="toAccountId"
+                  value={selectedToAccountId}
+                  onChange={(v) => { setSelectedToAccountId(v); setSelectedGoalId(""); }}
+                  options={[{ value: "", label: "To account" }].concat((destinationAccounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                  required
+                />
+              </FieldRow>
+            </>
           ) : (
-            <FieldRow label="Goal">
-              <IconSelect
-                name="goalId"
-                value={selectedGoalId}
-                onChange={(v) => { setSelectedGoalId(v); setSelectedToAccountId(""); }}
-                options={[{ value: "", label: "Select goal" }].concat((goals ?? []).map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
-                required
-              />
-            </FieldRow>
+            <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3">
+              <label className="text-xs font-medium text-slate-700">Destination</label>
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <IconSelect
+                    name="fromAccountId"
+                    value={fromAccountId}
+                    onChange={(v) => setFromAccountId(v)}
+                    options={[{ value: "", label: "From account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                    required
+                  />
+                </div>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                    <path d="M1.75 8h10.5M9.75 4.75L13 8l-3.25 3.25" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <IconSelect
+                    name="goalId"
+                    value={selectedGoalId}
+                    onChange={(v) => { setSelectedGoalId(v); setSelectedToAccountId(""); }}
+                    options={[{ value: "", label: "Goal" }].concat((goals ?? []).map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
           )}
           <FieldRow label="Name">
             <input name="name" placeholder="Optional note" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
