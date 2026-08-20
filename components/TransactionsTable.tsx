@@ -603,8 +603,8 @@ export default function TransactionsTable({
                                   {status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
                                   <div className="flex items-center justify-end gap-1.5">
                                     {hasSpentAmountChange ? <>
-                                      <span className="whitespace-nowrap text-sm font-semibold text-slate-700">{formatCurrencyLabel(transaction.allocationOutcomeAmount, transaction.currency)}</span>
                                       <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right text-[11px] font-normal text-slate-400 line-through" />
+                                      <span className="whitespace-nowrap text-sm font-semibold text-slate-700">{formatCurrencyLabel(transaction.allocationOutcomeAmount, transaction.currency)}</span>
                                     </> : <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className={`text-right ${isConcludedAllocation ? "line-through" : ""}`} />}
                                   </div>
                                 </div>
