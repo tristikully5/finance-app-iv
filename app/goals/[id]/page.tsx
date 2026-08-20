@@ -6,7 +6,11 @@ import GoalBudgetMetrics from "@/components/GoalBudgetMetrics";
 import GoalBudgetChart from "@/components/GoalBudgetChart";
 import GoalBudgetSummary from "@/components/GoalBudgetSummary";
 import GoalBudgetTable from "@/components/GoalBudgetTable";
+import ConcludeGoal from "@/components/ConcludeGoal";
+import { concludeGoal } from "@/app/goals/actions";
 import { defaultIconValue } from "@/lib/icon-options";
+import { buildMonthKey } from "@/lib/budgets";
+import { ensureMonthSnapshot } from "@/lib/month-snapshots";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +78,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
   });
 
   if (!goal) notFound();
-
+ 
   const transactions = goal.allocations ?? [];
   const totalAdded = transactions.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
   const totalUsed = transactions.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
@@ -84,6 +88,20 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
   const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
   const daysLeft = getDaysLeft(targetDate);
   const createdDate = new Date(goal.createdAt);
+
+  // load accounts to let user pick final account
+  const accounts = await prisma.account.findMany({ where: { archived: false }, select: { id: true, name: true } });
+
+  // ensure month snapshot for today and load Expense categories for selection
+  const today = new Date();
+  const monthKey = buildMonthKey(today.getFullYear(), today.getMonth() + 1);
+  await ensureMonthSnapshot(monthKey);
+  const month = await prisma.month.findUnique({ where: { key: monthKey } });
+  let expenseCategories: { id: number; name: string }[] = [];
+  if (month) {
+    const cats = await prisma.monthCategory.findMany({ where: { monthId: month.id, type: "Expense", archived: false }, select: { id: true, name: true } });
+    expenseCategories = cats;
+  }
 
   return (
     <div className="space-y-5">
@@ -235,6 +253,11 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
         {/* Budget segments table */}
         <div className="mt-6">
           <GoalBudgetTable goalId={goal.id} total={goal.amount} currency={goal.currency} transactions={transactions.map((t) => ({ id: t.id, name: t.name, amount: t.amount }))} />
+        </div>
+
+        {/* Conclude action */}
+        <div className="mt-6">
+          <ConcludeGoal action={concludeGoal} goalId={goal.id} goalName={goal.name} allocated={totalAdded} spentProp={totalUsed} currency={goal.currency} accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} categories={expenseCategories} isConcluded={goal.status === 'Concluded'} />
         </div>
       </div>
     </div>

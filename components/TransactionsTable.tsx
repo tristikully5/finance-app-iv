@@ -4,8 +4,10 @@ import InlineEditableCell from "@/components/InlineEditableCell";
 import QuickAddShell from "@/app/components/QuickAddShell";
 import Link from "next/link";
 import TransactionEditDialog from "@/components/TransactionEditDialog";
+import ConcludedGoalDialog from "@/components/ConcludedGoalDialog";
 import IconDisplay from "@/components/IconDisplay";
 import { updateTransaction } from "@/app/transactions/actions";
+import { getCategoryTypeDefaultIconValue } from "@/lib/icon-options";
 import { useMemo, useState, useEffect } from "react";
 
 type AccountOption = { id: number; name: string; icon: string | null };
@@ -93,29 +95,132 @@ type DonutEntry = {
 
 function SummaryDonut({ entries, label }: { entries: DonutEntry[]; label: string }) {
   const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+
+  const labelPositions = entries.map((entry, index) => {
+    const previousTotal = entries.slice(0, index).reduce((sum, previousEntry) => sum + previousEntry.value, 0);
+    const segment = total === 0 ? 0 : ((entry.value / total) * 100);
+    const startAngle = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0) * 3.6 - 90;
+    const midAngle = startAngle + segment * 3.6 / 2;
+    const radians = (midAngle * Math.PI) / 180;
+    const radius = 46;
+    const x = 50 + (Math.cos(radians) * radius);
+    const y = 50 + (Math.sin(radians) * radius);
+    const anchor = x > 50 ? "start" : "end";
+    const labelYOffset = entry.name.length > 12 ? 5 : 0;
+
+    return {
+      ...entry,
+      x,
+      y: y + labelYOffset,
+      anchor,
+      percent: total === 0 ? 0 : Math.round((entry.value / total) * 100),
+      key: `${entry.name}-${index}`,
+    };
+  });
+
+  const segmentPercentLabels = entries.map((entry, index) => {
+    const segment = total === 0 ? 0 : (entry.value / total) * 100;
+    const startAngle = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0) * 3.6 - 90;
+    const midAngle = startAngle + segment * 3.6 / 2;
+    const radians = (midAngle * Math.PI) / 180;
+    const labelRadius = 37;
+    const x = 50 + (Math.cos(radians) * labelRadius);
+    const y = 50 + (Math.sin(radians) * labelRadius);
+    const percent = total === 0 ? 0 : Math.round((entry.value / total) * 100);
+
+    return {
+      ...entry,
+      x,
+      y,
+      percent,
+      show: percent >= 8,
+      key: `${entry.name}-percent-${index}`,
+    };
+  });
+
   return (
-    <div className="relative h-32 w-32">
+    <div className="relative h-48 w-48">
       <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-label={`${label} category breakdown`} role="img">
-        <circle cx="50" cy="50" r="39" fill="none" strokeWidth="15" className="stroke-slate-100" />
+        <circle cx="50" cy="50" r="31" fill="none" strokeWidth="13" className="stroke-slate-100" />
         {entries.map((entry, index) => {
           const segment = total === 0 ? 0 : (entry.value / total) * 100;
           const segmentLength = entries.length > 1 ? Math.max(segment - 0.8, 0) : segment;
           const offset = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0);
-          return <circle key={entry.name} cx="50" cy="50" r="39" fill="none" pathLength="100" strokeWidth="15" strokeLinecap="butt" strokeDasharray={`${segmentLength} ${100 - segmentLength}`} strokeDashoffset={-offset} className={entry.strokeClass} />;
+          return <circle key={entry.name} cx="50" cy="50" r="31" fill="none" pathLength="100" strokeWidth="13" strokeLinecap="butt" strokeDasharray={`${segmentLength} ${100 - segmentLength}`} strokeDashoffset={-offset} className={entry.strokeClass} />;
         })}
+        {segmentPercentLabels.filter((item) => item.show).map((item) => (
+          <text
+            key={item.key}
+            x={item.x}
+            y={item.y}
+            fill="white"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="0.6"
+            paintOrder="stroke"
+            fontSize="4.2"
+            fontWeight="700"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="pointer-events-none"
+          >
+            {`${item.percent}%`}
+          </text>
+        ))}
       </svg>
+
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-sm font-bold leading-none text-slate-800">{total > 0 ? "100%" : "0%"}</span>
+        <span className="text-2xl font-bold leading-none text-slate-800">{total > 0 ? `${Math.round((total / total) * 100)}%` : "0%"}</span>
         <span className="mt-1 text-[10px] text-slate-500">{label}</span>
       </div>
+
+      {labelPositions.map((item) => (
+        <div
+          key={item.key}
+          className="pointer-events-none absolute flex items-center"
+          style={{
+            left: `${item.x}%`,
+            top: `${item.y}%`,
+            transform: `translate(${item.anchor === "start" ? "8px" : "-100%"}, -50%)`,
+            maxWidth: "34%",
+          }}
+        >
+          <div className="text-[10px] font-medium text-slate-600 leading-tight" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
+            <div className="whitespace-nowrap">{item.name}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
+function normalizedAmountForDisplay(transaction: Pick<TransactionItem, "type" | "amount">) {
+  if (transaction.type === "Expense" && transaction.amount < 0) {
+    return Math.abs(transaction.amount);
+  }
+  return transaction.amount;
+}
+
 function transactionDelta(transaction: TransactionItem) {
   if (transaction.type === "Income") return transaction.amount;
-  if (transaction.type === "Expense") return -transaction.amount;
-  return -transaction.amount;
+  if (transaction.type === "Expense") return -Math.abs(transaction.amount);
+  return -Math.abs(transaction.amount);
+}
+
+function getTransactionTypeIcon(transaction: TransactionItem) {
+  if (transaction.type === "Transfer") {
+    return transaction.category.icon || getCategoryTypeDefaultIconValue("Transfer");
+  }
+  if (transaction.type === "Allocate") {
+    return transaction.category.icon || getCategoryTypeDefaultIconValue("Allocate");
+  }
+  return transaction.category.icon || getCategoryTypeDefaultIconValue(transaction.type === "Income" ? "Income" : "Expense");
+}
+
+function getTypeFallbackIcon(type: string) {
+  if (type === "Transfer") return getCategoryTypeDefaultIconValue("Transfer");
+  if (type === "Allocate") return getCategoryTypeDefaultIconValue("Allocate");
+  if (type === "Income") return getCategoryTypeDefaultIconValue("Income");
+  return getCategoryTypeDefaultIconValue("Expense");
 }
 
 function destinationValue(transaction: TransactionItem) {
@@ -233,13 +338,13 @@ export default function TransactionsTable({
 
   const summaryCurrency = filteredTransactions[0]?.currency ?? "SGD";
   const monthIncome = filteredTransactions.filter((item) => item.type === "Income").reduce((sum, item) => sum + item.amount, 0);
-  const monthExpense = filteredTransactions.filter((item) => item.type === "Expense").reduce((sum, item) => sum + item.amount, 0);
+  const monthExpense = filteredTransactions.filter((item) => item.type === "Expense").reduce((sum, item) => sum + normalizedAmountForDisplay(item), 0);
   const monthNet = monthIncome - monthExpense;
 
   const categoryBreakdowns = useMemo(() => {
     const buildBreakdown = (type: "Income" | "Expense") => {
       const typeTransactions = filteredTransactions.filter((item) => item.type === type);
-      const total = typeTransactions.reduce((sum, item) => sum + item.amount, 0);
+      const total = typeTransactions.reduce((sum, item) => sum + normalizedAmountForDisplay(item), 0);
       const grouped = new Map<string, Omit<DonutEntry, "percentage">>();
 
       typeTransactions.forEach((transaction, index) => {
@@ -251,7 +356,7 @@ export default function TransactionsTable({
           ...palette[index % palette.length],
         };
 
-        current.value += transaction.amount;
+        current.value += normalizedAmountForDisplay(transaction);
         grouped.set(key, current);
       });
 
@@ -391,16 +496,13 @@ export default function TransactionsTable({
                             {isOpen ? dayTransactions.map((transaction) => {
                               const isIncome = transaction.type === "Income";
                               return <div key={transaction.id} onClick={(event) => { const target = event.target as HTMLElement; if (target.closest("button, input, select, a")) return; setEditingTransaction(transaction); }} className="transaction-row-grid cursor-pointer items-center bg-white px-4 py-3 text-xs hover:bg-slate-50">
-                                <div className="flex min-w-0 items-center gap-2">
-                                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${isIncome ? "bg-emerald-50 text-emerald-600" : transaction.type === "Transfer" ? "bg-violet-50 text-violet-600" : "bg-rose-50 text-rose-600"}`}>
-                                    <IconDisplay icon={transaction.category.icon || (transaction.type === "Transfer" ? "" : undefined)} className="h-4 w-4 object-contain" />
-                                  </span>
+                                <div className="min-w-0">
                                   <InlineEditableCell
                                     value={String(transaction.monthCategoryId)}
                                     type="select"
                                     options={categories
                                       .filter((item) => item.type === transaction.type)
-                                      .map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))}
+                                      .map((item) => ({ label: item.name, value: String(item.id), icon: item.icon || getTypeFallbackIcon(transaction.type) }))}
                                     onSave={(value) => makeUpdateForm(transaction, { monthCategoryId: Number(value) || transaction.monthCategoryId })}
                                     className="min-w-0 truncate font-medium text-slate-700"
                                     showOptionIcons
@@ -438,7 +540,7 @@ export default function TransactionsTable({
                                     <InlineEditableCell value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="mt-0.5 block text-[11px] text-slate-500" showOptionIcons />
                                   )}
                                 </div>
-                                <div className={`text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : isIncome ? "text-emerald-600" : "text-rose-600"}`}><InlineEditableCell value={String(transaction.amount)} type="number" displayValue={formatCurrencyLabel(Math.abs(transaction.amount), transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right" /> </div>
+                                <div className={`text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}><InlineEditableCell value={String(normalizedAmountForDisplay(transaction))} type="number" displayValue={formatCurrencyLabel(normalizedAmountForDisplay(transaction), transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right" /> </div>
                             </div>;
                           }) : null}
                         </div>
@@ -577,7 +679,13 @@ export default function TransactionsTable({
         </div>
       </section>
 
-      {editingTransaction ? <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} onClose={() => setEditingTransaction(null)} /> : null}
+      {editingTransaction ? (
+        (editingTransaction.type === "Expense" && editingTransaction.goalId && String(editingTransaction.name || "").startsWith("Conclude Goal:")) ? (
+          <ConcludedGoalDialog transaction={editingTransaction} onClose={() => setEditingTransaction(null)} />
+        ) : (
+          <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} onClose={() => setEditingTransaction(null)} />
+        )
+      ) : null}
     </>
   );
 }

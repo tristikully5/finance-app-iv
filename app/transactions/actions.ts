@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { buildMonthKey } from "@/lib/budgets";
 import { ensureMonthSnapshot } from "@/lib/month-snapshots";
-import { defaultIconValue, defaultTransferIconValue } from "@/lib/icon-options";
+import { defaultAllocateIconValue, defaultIconValue, defaultTransferIconValue } from "@/lib/icon-options";
 
 function parseAmount(value: FormDataEntryValue | null) {
   const amount = Number(value);
@@ -98,7 +98,7 @@ async function ensureAutoMonthCategory(date: Date, typeName: "Transfer" | "Alloc
         data: {
           name: typeName,
           type: typeName,
-          icon: typeName === "Transfer" ? defaultTransferIconValue : defaultTransferIconValue,
+          icon: typeName === "Transfer" ? defaultTransferIconValue : defaultAllocateIconValue,
           color: "slate",
           sortOrder: nextSortOrder,
           defaultBudgetAmount: 0,

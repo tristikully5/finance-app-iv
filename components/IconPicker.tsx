@@ -9,7 +9,7 @@ import { defaultIconValue, isCustomIcon, type IconOption } from "@/lib/icon-opti
 type IconPickerProps = {
   name: string;
   defaultValue: string;
-  type: "Expense" | "Income" | "Account" | "Goal" | "Transfer";
+  type: "Expense" | "Income" | "Account" | "Goal" | "Transfer" | "Allocate";
 };
 
 type MenuPosition = {
@@ -201,9 +201,9 @@ export default function IconPicker({ name, defaultValue, type }: IconPickerProps
       <button
         type="button"
         onClick={toggleMenu}
-        className={`flex h-12 w-12 items-center justify-center rounded-xl border transition hover:border-slate-300 ${type === "Income" ? "border-emerald-100 bg-emerald-50 text-emerald-500 hover:bg-emerald-50" : type === "Goal" ? "border-blue-100 bg-blue-50 text-blue-500 hover:bg-blue-50" : type === "Account" ? "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100" : type === "Transfer" ? "border-violet-100 bg-violet-50 text-violet-500 hover:bg-violet-50" : "border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-50"}`}
+        className={`flex h-12 w-12 items-center justify-center rounded-xl border transition hover:border-slate-300 ${type === "Income" ? "border-emerald-100 bg-emerald-50 text-emerald-500 hover:bg-emerald-50" : type === "Goal" ? "border-blue-100 bg-blue-50 text-blue-500 hover:bg-blue-50" : type === "Account" ? "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100" : type === "Transfer" ? "border-violet-100 bg-violet-50 text-violet-500 hover:bg-violet-50" : type === "Allocate" ? "border-cyan-100 bg-cyan-50 text-cyan-500 hover:bg-cyan-50" : "border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-50"}`}
         title="Change icon"
-        aria-label={type === "Account" ? "Change account icon" : type === "Goal" ? "Change goal icon" : type === "Transfer" ? "Change transfer icon" : "Change category icon"}
+        aria-label={type === "Account" ? "Change account icon" : type === "Goal" ? "Change goal icon" : type === "Transfer" ? "Change transfer icon" : type === "Allocate" ? "Change allocate icon" : "Change category icon"}
         aria-haspopup="dialog"
         aria-expanded={open}
         ref={triggerRef}
