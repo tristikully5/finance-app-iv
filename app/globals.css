@@ -202,7 +202,7 @@ body {
 }
 
 .transaction-day-grid {
-  grid-template-columns: 8.5rem minmax(12rem, 1.5fr) 6.5rem 1.25rem;
+  grid-template-columns: 8.5rem minmax(12rem, 1.5fr) 6.5rem 6.5rem;
 }
 
 .transaction-row-grid {
