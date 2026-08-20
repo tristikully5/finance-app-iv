@@ -247,6 +247,7 @@ export async function createTransaction(formData: FormData) {
             accountId: sourceAccountId,
             toAccountId: null,
             goalId,
+            allocationState: "Allocated",
             monthCategoryId: allocateMonthCategoryId,
           },
         });
@@ -257,7 +258,7 @@ export async function createTransaction(formData: FormData) {
         }
 
         await prisma.$executeRaw(
-          Prisma.sql`INSERT INTO "Transaction" ("date", "name", "amount", "currency", "type", "accountId", "toAccountId", "goalId", "monthCategoryId") VALUES (${parsedDate}, ${name}, ${amount}, ${currency}, 'Allocate', ${sourceAccountId}, NULL, ${goalId}, ${allocateMonthCategoryId})`
+          Prisma.sql`INSERT INTO "Transaction" ("date", "name", "amount", "currency", "type", "accountId", "toAccountId", "goalId", "allocationState", "monthCategoryId") VALUES (${parsedDate}, ${name}, ${amount}, ${currency}, 'Allocate', ${sourceAccountId}, NULL, ${goalId}, 'Allocated', ${allocateMonthCategoryId})`
         );
         needSyncGoals.push(goalId);
       }
@@ -442,6 +443,7 @@ export async function updateTransaction(formData: FormData) {
             accountId: sourceAccountId,
             toAccountId: null,
             goalId,
+            allocationState: "Allocated",
             monthCategoryId: allocateMonthCategoryId,
           },
         });
@@ -452,7 +454,7 @@ export async function updateTransaction(formData: FormData) {
         }
 
         await prisma.$executeRaw(
-          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Allocate', "accountId" = ${sourceAccountId}, "toAccountId" = NULL, "goalId" = ${goalId}, "monthCategoryId" = ${allocateMonthCategoryId} WHERE "id" = ${id}`
+          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Allocate', "accountId" = ${sourceAccountId}, "toAccountId" = NULL, "goalId" = ${goalId}, "allocationState" = 'Allocated', "monthCategoryId" = ${allocateMonthCategoryId} WHERE "id" = ${id}`
         );
         needSyncGoals.push(existingTransaction?.goalId ?? 0, goalId);
       }

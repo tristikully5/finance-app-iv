@@ -7,7 +7,7 @@ import GoalBudgetChart from "@/components/GoalBudgetChart";
 import GoalBudgetSummary from "@/components/GoalBudgetSummary";
 import GoalBudgetTable from "@/components/GoalBudgetTable";
 import ConcludeGoal from "@/components/ConcludeGoal";
-import { concludeGoal } from "@/app/goals/actions";
+import { concludeGoal, undoGoalConclusion } from "@/app/goals/actions";
 import { defaultIconValue } from "@/lib/icon-options";
 import { buildMonthKey } from "@/lib/budgets";
 import { ensureMonthSnapshot } from "@/lib/month-snapshots";
@@ -80,9 +80,10 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
   if (!goal) notFound();
  
   const transactions = goal.allocations ?? [];
-  const totalAdded = transactions.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
-  const totalUsed = transactions.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
-  const savedSoFar = Number(goal.amountUsed ?? (totalAdded - totalUsed));
+  const totalAllocated = transactions.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
+  const totalUsedFromExpenses = transactions.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
+  const totalSpent = goal.status === "Concluded" ? Number(goal.amountUsed ?? totalUsedFromExpenses) : totalUsedFromExpenses;
+  const savedSoFar = goal.status === "Concluded" ? totalSpent : Number(goal.amountUsed ?? (totalAllocated - totalUsedFromExpenses));
   const remaining = Math.max(goal.amount - savedSoFar, 0);
   const progress = getProgress(goal.amount, savedSoFar);
   const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
@@ -182,7 +183,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
 
       {/* Show amounts summary above allocations */}
       <div>
-        <GoalBudgetSummary total={goal.amount} currency={goal.currency} allocated={totalAdded} spent={totalUsed} goalId={goal.id} />
+        <GoalBudgetSummary total={goal.amount} currency={goal.currency} allocated={totalAllocated} spent={totalSpent} goalId={goal.id} />
       </div>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -195,11 +196,12 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
 
         <div className="overflow-x-auto">
           <div className="min-w-[700px]">
-            <div className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr_1.1fr] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               <span>Date</span>
               <span>Account</span>
               <span>Type</span>
               <span>Amount</span>
+              <span>Status</span>
               <span>Note</span>
             </div>
 
@@ -210,9 +212,20 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
                 const delta = transaction.amount;
                 const isAdded = delta >= 0;
                 const sourceName = transaction.account?.name ?? "Account";
+                const isConcluded = transaction.allocationState === "Concluded";
+                const outcomeLabel = transaction.allocationOutcome || (isConcluded ? "Concluded" : isAdded ? "Allocated" : "Used");
+                const outcomeTone = isConcluded
+                  ? transaction.allocationOutcome === "Released"
+                    ? "bg-amber-50 text-amber-700"
+                    : transaction.allocationOutcome === "Cancelled"
+                      ? "bg-slate-200 text-slate-700"
+                      : "bg-emerald-50 text-emerald-700"
+                  : isAdded
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-rose-50 text-rose-700";
 
                 return (
-                  <div key={transaction.id} className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-700 last:border-b-0">
+                  <div key={transaction.id} className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr_1.1fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-700 last:border-b-0">
                     <div>
                       <div className="font-medium text-slate-900">{formatDate(transaction.date)}</div>
                       <div className="mt-1 text-[10px] text-slate-500">{new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(transaction.date)}</div>
@@ -233,6 +246,12 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
                       {isAdded ? "+" : "-"}{formatCurrency(Math.abs(delta), goal.currency)}
                     </div>
 
+                    <div>
+                      <span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ${outcomeTone}`}>
+                        {outcomeLabel}
+                      </span>
+                    </div>
+
                     <div className="truncate text-slate-500">{transaction.name || "—"}</div>
                   </div>
                 );
@@ -247,7 +266,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
         <GoalBudgetChart goalId={goal.id} total={goal.amount} currency={goal.currency} />
 
         <div className="mt-4">
-          <GoalBudgetMetrics total={goal.amount} currency={goal.currency} allocated={totalAdded} spent={totalUsed} goalId={goal.id} />
+          <GoalBudgetMetrics total={goal.amount} currency={goal.currency} allocated={totalAllocated} spent={totalSpent} goalId={goal.id} />
         </div>
 
         {/* Budget segments table */}
@@ -257,7 +276,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
 
         {/* Conclude action */}
         <div className="mt-6">
-          <ConcludeGoal action={concludeGoal} goalId={goal.id} goalName={goal.name} allocated={totalAdded} spentProp={totalUsed} currency={goal.currency} isConcluded={goal.status === 'Concluded'} />
+          <ConcludeGoal action={concludeGoal} undoAction={undoGoalConclusion} goalId={goal.id} goalName={goal.name} allocated={totalAllocated} spentProp={totalSpent} currency={goal.currency} isConcluded={goal.status === 'Concluded'} accounts={accounts} />
         </div>
       </div>
     </div>

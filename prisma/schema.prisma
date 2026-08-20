@@ -125,6 +125,12 @@ model Transaction {
 
   goalId Int?
 
+  allocationState String @default("Allocated")
+
+  allocationOutcome String?
+
+  allocationOutcomeAmount Float @default(0)
+
   monthCategoryId Int
 
   account Account @relation("FromAccountTransactions", fields: [accountId], references: [id])

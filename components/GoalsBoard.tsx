@@ -20,6 +20,8 @@ type Goal = {
   description: string | null;
   status: string;
   amountUsed: number;
+  allocated?: number;
+  spent?: number;
 };
 
 type GoalFilter = "All" | "Progressing" | "Completed" | "Concluded" | "On hold";
@@ -162,7 +164,11 @@ function GoalCard({ goal, index, onEdit }: { goal: Goal; index: number; onEdit: 
         <span className="text-xs font-bold text-slate-500">{progress}%</span>
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${progressTones[index % progressTones.length]}`} style={{ width: `${progress}%` }} /></div>
-      <p className="mt-2 text-[10px] text-slate-500"><span className="font-bold text-slate-700">{goal.currency} {formatAmount(goal.amountUsed)}</span> / {goal.currency} {formatAmount(goal.amount)}</p>
+      <p className="mt-2 text-[10px] text-slate-500">
+        <span className="font-bold text-slate-700">Alloc {goal.currency} {formatAmount(goal.allocated ?? 0)}</span>
+        <span className="mx-1 text-slate-400">•</span>
+        <span className="font-bold text-slate-700">Spent {goal.currency} {formatAmount(goal.spent ?? goal.amountUsed ?? 0)}</span>
+      </p>
       <div className="mt-5 flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarIcon />{goal.status === "Completed" || goal.status === "Concluded" ? statusLabel(goal.status) : "No target date"}</div>
     </article>
   );
