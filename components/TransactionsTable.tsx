@@ -598,14 +598,17 @@ export default function TransactionsTable({
                                   ) : (
                                     <InlineEditableCell value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="mt-0.5 block text-[11px] text-slate-500" showOptionIcons />
                                   )}
+                                  {hasSpentAmountChange ? (
+                                    <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
+                                      <span>Original</span>
+                                      <InlineEditableCell noFullWidth value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-[11px] font-normal text-slate-400 line-through" />
+                                    </div>
+                                  ) : null}
                                 </div>
                                 <div className={`flex flex-col items-end gap-1 text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
                                   {status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
                                   <div className="flex items-center justify-end gap-1.5">
-                                    {hasSpentAmountChange ? <>
-                                      <span className="whitespace-nowrap text-sm font-semibold text-slate-700">{formatCurrencyLabel(transaction.allocationOutcomeAmount, transaction.currency)}</span>
-                                      <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right text-[11px] font-normal text-slate-400 line-through" />
-                                    </> : <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className={`text-right ${isConcludedAllocation ? "line-through" : ""}`} />}
+                                    {hasSpentAmountChange ? <span className="whitespace-nowrap text-sm font-semibold text-slate-700">{formatCurrencyLabel(transaction.allocationOutcomeAmount, transaction.currency)}</span> : <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className={`text-right ${isConcludedAllocation ? "line-through" : ""}`} />}
                                   </div>
                                 </div>
                             </div>;
