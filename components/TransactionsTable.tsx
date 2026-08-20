@@ -248,7 +248,7 @@ function allocationStatus(transaction: Pick<TransactionItem, "type" | "amount" |
 function allocationStatusClass(status: string | null) {
   if (status === "Released") return "transaction-status-released";
   if (status === "Cancelled") return "transaction-status-cancelled";
-  if (status === "Partially spent") return "transaction-status-partial";
+  if (status === "Partially spent") return "transaction-status-partially-spent";
   if (status === "Spent") return "transaction-status-spent";
   return "transaction-status-allocated";
 }
@@ -648,6 +648,7 @@ export default function TransactionsTable({
                           const isReleasedAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Released";
                           const isSpentAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent";
                           const hasSpentAmountChange = isSpentAllocation && transaction.allocationOutcomeAmount !== normalizedAmountForDisplay(transaction);
+                          const status = allocationStatus(transaction);
                           const tone = isIncome ? "bg-emerald-100 text-emerald-800 border-emerald-200" : isTransfer ? "bg-violet-100 text-violet-800 border-violet-200" : "bg-rose-100 text-rose-700 border-rose-200";
 
                           return (
@@ -663,6 +664,7 @@ export default function TransactionsTable({
                                 </span>
                                 <span className={`truncate font-semibold ${isReleasedAllocation ? "line-through" : ""}`}>{transaction.name}</span>
                               </div>
+                              {status ? <span className={`transaction-status-badge ${allocationStatusClass(status)} mt-1`}>{status}</span> : null}
                               <div className="mt-1 flex items-center justify-between gap-1 text-[9px] font-medium">
                                 <span className="truncate">{transaction.account.name}</span>
                                 <span className={`flex shrink-0 items-center gap-1 ${isIncome ? "text-emerald-900" : "text-rose-700"}`}>

@@ -185,7 +185,7 @@ body {
   color: #4d7c0f;
 }
 
-.transaction-status-partial,
+.transaction-status-partially-spent,
 .transaction-status-spent {
   background: #ede9fe;
   color: #6d28d9;
