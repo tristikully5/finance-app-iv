@@ -2,7 +2,15 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import IconDisplay from "@/components/IconDisplay";
 import PageHeader from "@/components/PageHeader";
+import GoalBudgetMetrics from "@/components/GoalBudgetMetrics";
+import GoalBudgetChart from "@/components/GoalBudgetChart";
+import GoalBudgetSummary from "@/components/GoalBudgetSummary";
+import GoalBudgetTable from "@/components/GoalBudgetTable";
+import ConcludeGoal from "@/components/ConcludeGoal";
+import { concludeGoal, undoGoalConclusion } from "@/app/goals/actions";
 import { defaultIconValue } from "@/lib/icon-options";
+import { buildMonthKey } from "@/lib/budgets";
+import { ensureMonthSnapshot } from "@/lib/month-snapshots";
 
 export const dynamic = "force-dynamic";
 
@@ -70,23 +78,31 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
   });
 
   if (!goal) notFound();
-
+ 
   const transactions = goal.allocations ?? [];
-  const totalAdded = transactions.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
-  const totalUsed = transactions.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
-  const savedSoFar = Number(goal.amountUsed ?? (totalAdded - totalUsed));
+  const totalAllocated = transactions.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
+  const totalUsedFromExpenses = transactions.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
+  const totalSpent = goal.status === "Concluded" ? Number(goal.amountUsed ?? totalUsedFromExpenses) : totalUsedFromExpenses;
+  const savedSoFar = goal.status === "Concluded" ? totalSpent : Number(goal.amountUsed ?? (totalAllocated - totalUsedFromExpenses));
   const remaining = Math.max(goal.amount - savedSoFar, 0);
   const progress = getProgress(goal.amount, savedSoFar);
   const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
   const daysLeft = getDaysLeft(targetDate);
   const createdDate = new Date(goal.createdAt);
-  const connectedAccounts = Array.from(
-    new Map(
-      transactions
-        .filter((transaction) => transaction.account)
-        .map((transaction) => [transaction.accountId, transaction.account])
-    ).values()
-  );
+
+  // load accounts to let user pick final account
+  const accounts = await prisma.account.findMany({ where: { archived: false }, select: { id: true, name: true } });
+
+  // ensure month snapshot for today and load Expense categories for selection
+  const today = new Date();
+  const monthKey = buildMonthKey(today.getFullYear(), today.getMonth() + 1);
+  await ensureMonthSnapshot(monthKey);
+  const month = await prisma.month.findUnique({ where: { key: monthKey } });
+  let expenseCategories: { id: number; name: string }[] = [];
+  if (month) {
+    const cats = await prisma.monthCategory.findMany({ where: { monthId: month.id, type: "Expense", archived: false }, select: { id: true, name: true } });
+    expenseCategories = cats;
+  }
 
   return (
     <div className="space-y-5">
@@ -164,168 +180,105 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Saved So Far" value={formatCurrency(savedSoFar, goal.currency)} detail={`${formatCurrency(goal.amount, goal.currency)} target`} accent="emerald" />
-        <MetricCard label="Total Added" value={formatCurrency(totalAdded, goal.currency)} detail={transactions.length > 0 ? `${transactions.filter((item) => item.amount > 0).length} contributions` : "No added funds yet"} accent="emerald" />
-        <MetricCard label="Total Used" value={formatCurrency(-totalUsed, goal.currency)} detail={`${transactions.filter((item) => item.amount < 0).length} withdrawals`} accent="rose" />
-        <MetricCard label="Target Date" value={targetDate ? formatDate(targetDate, { day: "2-digit", month: "short", year: "numeric" }) : "—"} detail={daysLeft !== null ? `${daysLeft} days left` : "No target set"} accent="slate" />
+
+      {/* Show amounts summary above allocations */}
+      <div>
+        <GoalBudgetSummary total={goal.amount} currency={goal.currency} allocated={totalAllocated} spent={totalSpent} goalId={goal.id} />
       </div>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-4">
-          <h2 className="text-[15px] font-bold text-slate-950">Accounts Connected</h2>
-          <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-700">
-            View Details
-          </button>
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-4">
+          <h2 className="text-[15px] font-bold text-slate-950">Allocations</h2>
+          <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+            {transactions.length} {transactions.length === 1 ? "entry" : "entries"}
+          </span>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {connectedAccounts.length === 0 ? (
-            <p className="text-sm text-slate-500">No accounts connected to this goal yet.</p>
-          ) : (
-            connectedAccounts.map((account) => (
-              <div key={account.id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
-                  <IconDisplay icon={account.icon || defaultIconValue} className="h-4 w-4 object-contain" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-900">{account.name}</div>
-                  <div className="text-[10px] text-slate-500">Source Account</div>
-                </div>
-              </div>
-            ))
-          )}
-
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-emerald-50 px-3 py-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
-              <IconDisplay icon={goal.icon || defaultIconValue} className="h-4 w-4 object-contain" />
+        <div className="overflow-x-auto">
+          <div className="min-w-[700px]">
+            <div className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr_1.1fr] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <span>Date</span>
+              <span>Account</span>
+              <span>Type</span>
+              <span>Amount</span>
+              <span>Status</span>
+              <span>Note</span>
             </div>
-            <div>
-              <div className="text-[11px] font-semibold text-slate-900">{goal.name}</div>
-              <div className="text-[10px] text-slate-500">Goal Account</div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_0.75fr]">
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-4">
-            <h2 className="text-[15px] font-bold text-slate-950">Transfers</h2>
-            <div className="flex items-center gap-2">
-              <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-700">
-                All Types
-              </button>
-            </div>
-          </div>
+            {transactions.length === 0 ? (
+              <div className="px-4 py-10 text-center text-sm text-slate-500">No allocations for this goal yet.</div>
+            ) : (
+              transactions.map((transaction) => {
+                const delta = transaction.amount;
+                const isAdded = delta >= 0;
+                const sourceName = transaction.account?.name ?? "Account";
+                const isConcluded = transaction.allocationState === "Concluded";
+                const outcomeLabel = transaction.allocationOutcome || (isConcluded ? "Concluded" : isAdded ? "Allocated" : "Used");
+                const outcomeTone = isConcluded
+                  ? transaction.allocationOutcome === "Released"
+                    ? "bg-amber-50 text-amber-700"
+                    : transaction.allocationOutcome === "Cancelled"
+                      ? "bg-slate-200 text-slate-700"
+                      : "bg-emerald-50 text-emerald-700"
+                  : isAdded
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-rose-50 text-rose-700";
 
-          <div className="overflow-x-auto">
-            <div className="min-w-[700px]">
-              <div className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                <span>Date</span>
-                <span>Type</span>
-                <span>From / To</span>
-                <span>Amount</span>
-                <span>Note</span>
-              </div>
-
-              {transactions.length === 0 ? (
-                <div className="px-4 py-10 text-center text-sm text-slate-500">No transfers for this goal yet.</div>
-              ) : (
-                transactions.map((transaction) => {
-                  const delta = transaction.amount;
-                  const isAdded = delta >= 0;
-                  const sourceName = transaction.account?.name ?? "Account";
-                  const destinationName = transaction.toAccount?.name ?? goal.name;
-
-                  return (
-                    <div key={transaction.id} className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-700 last:border-b-0">
-                      <div>
-                        <div className="font-medium text-slate-900">{formatDate(transaction.date)}</div>
-                        <div className="mt-1 text-[10px] text-slate-500">{new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(transaction.date)}</div>
-                      </div>
-
-                      <div>
-                        <span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ${isAdded ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-                          {isAdded ? "Added" : "Used"}
-                        </span>
-                      </div>
-
-                      <div className="min-w-0 text-slate-600">
-                        <div className="truncate font-medium text-slate-900">{isAdded ? `${sourceName} → ${goal.name}` : `${goal.name} → ${destinationName}`}</div>
-                        <div className="mt-1 text-[10px] text-slate-500">{isAdded ? "Transfer" : "Withdrawal"}</div>
-                      </div>
-
-                      <div className={`font-semibold ${isAdded ? "text-emerald-700" : "text-rose-700"}`}>
-                        {isAdded ? "+" : "-"}{formatCurrency(Math.abs(delta), goal.currency)}
-                      </div>
-
-                      <div className="truncate text-slate-500">{transaction.name || "—"}</div>
+                return (
+                  <div key={transaction.id} className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr_1.1fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-700 last:border-b-0">
+                    <div>
+                      <div className="font-medium text-slate-900">{formatDate(transaction.date)}</div>
+                      <div className="mt-1 text-[10px] text-slate-500">{new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(transaction.date)}</div>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </section>
 
-        <aside className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-[15px] font-bold text-slate-950">Goal Summary</h2>
-            <div className="mt-4 space-y-3 text-sm text-slate-700">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                <span>Total Target</span>
-                <span className="font-semibold text-slate-950">{formatCurrency(goal.amount, goal.currency)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                <span>Saved So Far</span>
-                <span className="font-semibold text-slate-950">{formatCurrency(savedSoFar, goal.currency)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                <span>Remaining</span>
-                <span className="font-semibold text-slate-950">{formatCurrency(remaining, goal.currency)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                <span>Total Added</span>
-                <span className="font-semibold text-emerald-700">{formatCurrency(totalAdded, goal.currency)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                <span>Total Used</span>
-                <span className="font-semibold text-rose-700">{formatCurrency(-totalUsed, goal.currency)}</span>
-              </div>
-              <div className="pt-1">
-                <div className="flex items-center justify-between text-xs font-medium text-slate-600">
-                  <span>Progress</span>
-                  <span>{progress}%</span>
-                </div>
-                <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
+                    <div className="min-w-0 text-slate-600">
+                      <div className="truncate font-medium text-slate-900">{sourceName}</div>
+                      <div className="mt-1 text-[10px] text-slate-500">Source account</div>
+                    </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xl text-emerald-600">💡</div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tip</p>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-slate-700">You&apos;re doing great! Keep saving consistently.</p>
-          </div>
-        </aside>
-      </div>
+                    <div>
+                      <span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ${isAdded ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                        {isAdded ? "Allocated" : "Used"}
+                      </span>
+                    </div>
 
-      <section className="rounded-xl border border-slate-200 bg-sky-50/80 p-4 text-slate-700 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-sky-100 text-sky-700">i</div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">About Goal Transfers</h3>
-            <p className="mt-1 text-sm text-slate-600">Add money to your goal through transfers from your accounts. When you spend from this goal, the amount will be deducted from your saved total.</p>
+                    <div className={`font-semibold ${isAdded ? "text-emerald-700" : "text-rose-700"}`}>
+                      {isAdded ? "+" : "-"}{formatCurrency(Math.abs(delta), goal.currency)}
+                    </div>
+
+                    <div>
+                      <span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ${outcomeTone}`}>
+                        {outcomeLabel}
+                      </span>
+                    </div>
+
+                    <div className="truncate text-slate-500">{transaction.name || "—"}</div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </section>
+
+      {/* Budget allocation moved to bottom */}
+      <div className="mt-6">
+        <GoalBudgetChart goalId={goal.id} total={goal.amount} currency={goal.currency} />
+
+        <div className="mt-4">
+          <GoalBudgetMetrics total={goal.amount} currency={goal.currency} allocated={totalAllocated} spent={totalSpent} goalId={goal.id} />
+        </div>
+
+        {/* Budget segments table */}
+        <div className="mt-6">
+          <GoalBudgetTable goalId={goal.id} total={goal.amount} currency={goal.currency} transactions={transactions.map((t) => ({ id: t.id, name: t.name, amount: t.amount }))} />
+        </div>
+
+        {/* Conclude action */}
+        <div className="mt-6">
+          <ConcludeGoal action={concludeGoal} undoAction={undoGoalConclusion} goalId={goal.id} goalName={goal.name} allocated={totalAllocated} spentProp={totalSpent} currency={goal.currency} isConcluded={goal.status === 'Concluded'} accounts={accounts} />
+        </div>
+      </div>
     </div>
   );
 }

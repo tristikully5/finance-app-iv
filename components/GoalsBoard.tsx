@@ -20,9 +20,11 @@ type Goal = {
   description: string | null;
   status: string;
   amountUsed: number;
+  allocated?: number;
+  spent?: number;
 };
 
-type GoalFilter = "All" | "Progressing" | "Completed" | "On hold";
+type GoalFilter = "All" | "Progressing" | "Completed" | "Concluded" | "On hold";
 type GoalSort = "updated" | "amount" | "progress";
 type GoalView = "grid" | "list";
 
@@ -39,11 +41,14 @@ function progressFor(goal: Goal) {
 }
 
 function statusLabel(status: string) {
-  return status === "Progressing" ? "Progressing" : status;
+  if (status === "Progressing") return "Progressing";
+  if (status === "Concluded") return "Concluded";
+  return status || "Progressing";
 }
 
 function statusClasses(status: string) {
   if (status === "Completed") return "bg-emerald-50 text-emerald-700";
+  if (status === "Concluded") return "bg-rose-50 text-rose-700";
   if (status === "On hold") return "bg-slate-100 text-slate-600";
   return "bg-amber-50 text-amber-700";
 }
@@ -111,7 +116,7 @@ function GoalEditDialog({ goal, onClose }: { goal: Goal; onClose: () => void }) 
               </select>
             </div>
           </label>
-          <label className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 text-xs font-medium text-slate-700">Status<select name="status" defaultValue={goal.status} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"><option>Progressing</option><option>Completed</option><option>On hold</option></select></label>
+          <label className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 text-xs font-medium text-slate-700">Status<select name="status" defaultValue={goal.status} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"><option>Progressing</option><option>Completed</option><option>Concluded</option><option>On hold</option></select></label>
           <label className="block text-xs font-medium text-slate-700">
             <span className="block">Description <span className="font-normal italic text-slate-500">(optional)</span></span>
             <textarea name="description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={200} rows={2} className="mt-2 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
@@ -159,8 +164,12 @@ function GoalCard({ goal, index, onEdit }: { goal: Goal; index: number; onEdit: 
         <span className="text-xs font-bold text-slate-500">{progress}%</span>
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${progressTones[index % progressTones.length]}`} style={{ width: `${progress}%` }} /></div>
-      <p className="mt-2 text-[10px] text-slate-500"><span className="font-bold text-slate-700">{goal.currency} {formatAmount(goal.amountUsed)}</span> / {goal.currency} {formatAmount(goal.amount)}</p>
-      <div className="mt-5 flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarIcon />{goal.status === "Completed" ? "Completed" : "No target date"}</div>
+      <p className="mt-2 text-[10px] text-slate-500">
+        <span className="font-bold text-slate-700">Alloc {goal.currency} {formatAmount(goal.allocated ?? 0)}</span>
+        <span className="mx-1 text-slate-400">•</span>
+        <span className="font-bold text-slate-700">Spent {goal.currency} {formatAmount(goal.spent ?? goal.amountUsed ?? 0)}</span>
+      </p>
+      <div className="mt-5 flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarIcon />{goal.status === "Completed" || goal.status === "Concluded" ? statusLabel(goal.status) : "No target date"}</div>
     </article>
   );
 }
@@ -202,7 +211,7 @@ export default function GoalsBoard({ goals }: { goals: Goal[] }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
-          {(["All", "Progressing", "Completed", "On hold"] as GoalFilter[]).map((option) => (
+          {(["All", "Progressing", "Completed", "Concluded", "On hold"] as GoalFilter[]).map((option) => (
             <button key={option} type="button" onClick={() => setFilter(option)} className={`rounded-md px-3 py-1.5 text-[10px] font-semibold transition ${filter === option ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{option === "Progressing" ? "In progress" : option}</button>
           ))}
         </div>

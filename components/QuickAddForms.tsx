@@ -233,7 +233,7 @@ export function QuickAddTransactionForm({
   goals?: GoalOption[];
 }) {
   const [isPending, startTransition] = useTransition();
-  const [selectedType, setSelectedType] = useState<"Expense" | "Income" | "Transfer">("Expense");
+  const [selectedType, setSelectedType] = useState<"Expense" | "Income" | "Transfer" | "Allocate">("Expense");
   const [fromAccountId, setFromAccountId] = useState<string>("");
   const [selectedToAccountId, setSelectedToAccountId] = useState<string>("");
   const [selectedGoalId, setSelectedGoalId] = useState<string>("");
@@ -272,14 +272,15 @@ export function QuickAddTransactionForm({
             { label: "Income", value: "Income" },
             { label: "Expense", value: "Expense" },
             { label: "Transfer", value: "Transfer" },
+            { label: "Allocate", value: "Allocate" },
           ].map((option) => (
             <button
               key={option.value}
               type="button"
-              onClick={() => setSelectedType(option.value as "Expense" | "Income" | "Transfer")}
-              className={`flex-1 rounded-md px-2 py-2 text-xs font-semibold transition ${selectedType === option.value ? option.value === "Income" ? "bg-emerald-50 text-emerald-700" : option.value === "Expense" ? "bg-rose-50 text-rose-700" : "bg-violet-50 text-violet-700" : "text-slate-500 hover:bg-slate-50"}`}
+              onClick={() => setSelectedType(option.value as "Expense" | "Income" | "Transfer" | "Allocate")}
+              className={`flex-1 rounded-md px-2 py-2 text-xs font-semibold transition ${selectedType === option.value ? option.value === "Income" ? "bg-emerald-50 text-emerald-700" : option.value === "Expense" ? "bg-rose-50 text-rose-700" : option.value === "Transfer" ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700" : "text-slate-500 hover:bg-slate-50"}`}
             >
-              <span className="mr-1">{option.value === "Income" ? "↑" : option.value === "Expense" ? "↓" : "↔"}</span>{option.label}
+              <span className="mr-1">{option.value === "Income" ? "↑" : option.value === "Expense" ? "↓" : option.value === "Transfer" ? "↔" : "◎"}</span>{option.label}
             </button>
           ))}
         </div>
@@ -300,37 +301,62 @@ export function QuickAddTransactionForm({
         </div>
       </FieldRow>
 
-      {selectedType === "Transfer" ? (
+      {selectedType === "Transfer" || selectedType === "Allocate" ? (
         <>
           <FieldRow label="Category">
-            <input value="Transfer (auto)" disabled className="w-full rounded border border-slate-200 bg-slate-50 p-2 text-slate-500" />
+            <input value={selectedType === "Transfer" ? "Transfer (auto)" : "Allocate (auto)"} disabled className="w-full rounded border border-slate-200 bg-slate-50 p-2 text-slate-500" />
           </FieldRow>
-          <FieldRow label="From">
-            <IconSelect
-              name="fromAccountId"
-              value={fromAccountId}
-              onChange={(v) => setFromAccountId(v)}
-              options={[{ value: "", label: "Select source account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-              required
-            />
-          </FieldRow>
-          <FieldRow label="Destination">
-            <div className="grid grid-cols-2 gap-2">
-              <IconSelect
-                name="toAccountId"
-                value={selectedToAccountId}
-                onChange={(v) => { setSelectedToAccountId(v); if (v) setSelectedGoalId(""); }}
-                options={[{ value: "", label: "To account" }].concat((destinationAccounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-              />
-
-              <IconSelect
-                name="goalId"
-                value={selectedGoalId}
-                onChange={(v) => { setSelectedGoalId(v); if (v) setSelectedToAccountId(""); }}
-                options={[{ value: "", label: "Goal allocation" }].concat((goals ?? []).map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
-              />
+          {selectedType === "Transfer" ? (
+            <>
+              <FieldRow label="From">
+                <IconSelect
+                  name="fromAccountId"
+                  value={fromAccountId}
+                  onChange={(v) => setFromAccountId(v)}
+                  options={[{ value: "", label: "Select source account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                  required
+                />
+              </FieldRow>
+              <FieldRow label="Destination">
+                <IconSelect
+                  name="toAccountId"
+                  value={selectedToAccountId}
+                  onChange={(v) => { setSelectedToAccountId(v); setSelectedGoalId(""); }}
+                  options={[{ value: "", label: "To account" }].concat((destinationAccounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                  required
+                />
+              </FieldRow>
+            </>
+          ) : (
+            <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3">
+              <label className="text-xs font-medium text-slate-700">Destination</label>
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <IconSelect
+                    name="fromAccountId"
+                    value={fromAccountId}
+                    onChange={(v) => setFromAccountId(v)}
+                    options={[{ value: "", label: "From account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                    required
+                  />
+                </div>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                    <path d="M1.75 8h10.5M9.75 4.75L13 8l-3.25 3.25" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <IconSelect
+                    name="goalId"
+                    value={selectedGoalId}
+                    onChange={(v) => { setSelectedGoalId(v); setSelectedToAccountId(""); }}
+                    options={[{ value: "", label: "Goal" }].concat((goals ?? []).map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
+                    required
+                  />
+                </div>
+              </div>
             </div>
-          </FieldRow>
+          )}
           <FieldRow label="Name">
             <input name="name" placeholder="Optional note" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
           </FieldRow>

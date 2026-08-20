@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 type BalanceRow = {
   date: Date;
   amount: number;
-  type: "Income" | "Expense" | "Transfer";
+  type: "Income" | "Expense" | "Transfer" | "Allocate";
   accountId: number;
   toAccountId: number | null;
   goalId: number | null;
@@ -82,6 +82,14 @@ export default async function AccountsPage() {
           const destination = acc[transaction.toAccountId] ?? { actual: 0, reserved: 0 };
           destination.actual += transaction.amount;
           acc[transaction.toAccountId] = destination;
+        }
+      }
+
+      if (transaction.type === "Allocate") {
+        if (transaction.goalId) {
+          current.reserved += transaction.amount;
+          acc[transaction.accountId] = current;
+          return acc;
         }
       }
 
@@ -170,7 +178,7 @@ export default async function AccountsPage() {
           </div>
         </section>
 
-        <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-3">
           {accounts.map((account) => {
             const breakdown = balances[account.id] ?? { actual: 0, reserved: 0 };
             const available = breakdown.actual - breakdown.reserved;
@@ -191,16 +199,15 @@ export default async function AccountsPage() {
                     <IconDisplay icon={account.icon || defaultIconValue} alt="Account icon" className="h-5 w-5 object-contain" />
                   </span>
                 }
-                className="h-full min-h-60"
+                layout="row"
+                className="sm:py-5"
                 cardHref={`/accounts/${account.id}`}
                 modalTitle="Edit account"
                 modalDescription="Update this account for your finances."
                 editContent={<AccountEditForm account={{ id: account.id, name: account.name, type: account.type, currency: account.currency, icon: account.icon || defaultIconValue }} />}
               >
-                <div className="space-y-4">
-                  <div className="h-px w-full bg-slate-200" />
-
-                  <div className="grid grid-cols-2 gap-4 py-5">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-5 py-1 sm:gap-8">
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Available</p>
                       <p className="mt-2 whitespace-nowrap text-base font-semibold leading-none tracking-tight text-slate-900">{formatCurrency(available)}</p>
@@ -208,8 +215,8 @@ export default async function AccountsPage() {
                     </div>
 
                     <div className="min-w-0">
-                      <p className="text-right text-[10px] font-semibold uppercase tracking-wide text-slate-500">Actual</p>
-                      <p className="mt-2 whitespace-nowrap text-right text-base font-medium leading-none text-slate-900">{formatCurrency(breakdown.actual)}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Actual</p>
+                      <p className="mt-2 whitespace-nowrap text-base font-medium leading-none text-slate-900">{formatCurrency(breakdown.actual)}</p>
                       <progress className="account-progress account-progress-actual mt-4" value={Math.abs(breakdown.actual)} max={maxMagnitude} aria-label={`Actual balance ${formatCurrency(breakdown.actual)}`} />
                     </div>
                   </div>
@@ -225,11 +232,11 @@ export default async function AccountsPage() {
             );
           })}
 
-          <div className="h-full min-h-60">
+          <div>
             <QuickAddShell
               kind="account"
-              wrapperClassName="relative h-full"
-              buttonClassName="group flex h-full min-h-60 w-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white text-slate-500 transition hover:border-slate-400 hover:bg-slate-50"
+              wrapperClassName="relative"
+              buttonClassName="group flex min-h-24 w-full items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white text-slate-500 transition hover:border-slate-400 hover:bg-slate-50"
               buttonContent={<><span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-3xl font-light leading-none text-slate-500 transition group-hover:bg-slate-200">+</span><span className="text-sm font-semibold">Add account</span></>}
             />
           </div>

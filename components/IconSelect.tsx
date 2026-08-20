@@ -71,8 +71,8 @@ export default function IconSelect({ name, value, defaultValue, options, placeho
       {open && menuPosition && typeof document !== "undefined"
         ? createPortal(
             <>
-              <button type="button" aria-label="Close options" className="fixed inset-0 z-[90] cursor-default" onClick={() => setOpen(false)} />
-              <div role="listbox" className="fixed z-[91] max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl" style={{ top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}>
+              <button type="button" aria-label="Close options" data-icon-select-menu="true" className="fixed inset-0 z-[90] cursor-default" onClick={() => setOpen(false)} />
+              <div role="listbox" data-icon-select-menu="true" className="fixed z-[91] max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl" style={{ top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}>
                 {options.map((option) => (
                   <button key={option.value} type="button" role="option" aria-selected={option.value === selected} onClick={() => commit(option.value)} className="block w-full rounded-md px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">
                     <span className="flex items-center gap-2">

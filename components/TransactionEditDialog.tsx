@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import AmountInput from "@/components/AmountInput";
 import IconSelect from "@/components/IconSelect";
 
-type TransactionType = "Expense" | "Income" | "Transfer";
+type TransactionType = "Expense" | "Income" | "Transfer" | "Allocate";
 
 type TransactionEditDialogProps = {
   transaction: {
@@ -85,14 +85,15 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
                 { label: "Income", value: "Income" as const },
                 { label: "Expense", value: "Expense" as const },
                 { label: "Transfer", value: "Transfer" as const },
+                { label: "Allocate", value: "Allocate" as const },
               ].map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => setSelectedType(option.value)}
-                  className={`flex-1 rounded-md px-2 py-2 text-xs font-semibold transition ${selectedType === option.value ? option.value === "Income" ? "bg-emerald-50 text-emerald-700" : option.value === "Expense" ? "bg-rose-50 text-rose-700" : "bg-violet-50 text-violet-700" : "text-slate-500 hover:bg-slate-50"}`}
+                  className={`flex-1 rounded-md px-2 py-2 text-xs font-semibold transition ${selectedType === option.value ? option.value === "Income" ? "bg-emerald-50 text-emerald-700" : option.value === "Expense" ? "bg-rose-50 text-rose-700" : option.value === "Transfer" ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700" : "text-slate-500 hover:bg-slate-50"}`}
                 >
-                  <span className="mr-1">{option.value === "Income" ? "↑" : option.value === "Expense" ? "↓" : "↔"}</span>{option.label}
+                  <span className="mr-1">{option.value === "Income" ? "↑" : option.value === "Expense" ? "↓" : option.value === "Transfer" ? "↔" : "◎"}</span>{option.label}
                 </button>
               ))}
             </div>
@@ -100,34 +101,61 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
           </label>
           <label className="transaction-dialog-field">Date<input name="date" type="date" defaultValue={transaction.date.slice(0, 10)} required /></label>
           <label className="transaction-dialog-field">Amount<div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2"><AmountInput name="amount" defaultValue={Math.abs(transaction.amount)} required className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" /><select name="currency" defaultValue={transaction.currency}><option>SGD</option><option>USD</option><option>EUR</option></select></div></label>
-          {selectedType === "Transfer" ? (
+          {selectedType === "Transfer" || selectedType === "Allocate" ? (
             <>
-              <label className="transaction-dialog-field">Category<input value="Transfer (auto)" disabled /></label>
-              <label className="transaction-dialog-field">From
-                <IconSelect
-                  name="accountId"
-                  value={selectedAccountId}
-                  onChange={(v) => setSelectedAccountId(v)}
-                  options={accounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon }))}
-                  required
-                />
-              </label>
-              <label className="transaction-dialog-field">Destination
-                <div className="grid grid-cols-2 gap-2">
-                  <IconSelect
-                    name="toAccountId"
-                    value={selectedToAccountId}
-                    onChange={(v) => { setSelectedToAccountId(v); if (v) setSelectedGoalId(""); }}
-                    options={[{ value: "", label: "To account" }].concat(destinationAccounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-                  />
-                  <IconSelect
-                    name="goalId"
-                    value={selectedGoalId}
-                    onChange={(v) => { setSelectedGoalId(v); if (v) setSelectedToAccountId(""); }}
-                    options={[{ value: "", label: "Goal allocation" }].concat(goals.map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
-                  />
+              <label className="transaction-dialog-field">Category<input value={selectedType === "Transfer" ? "Transfer (auto)" : "Allocate (auto)"} disabled /></label>
+              {selectedType === "Transfer" ? (
+                <>
+                  <label className="transaction-dialog-field">From
+                    <IconSelect
+                      name="accountId"
+                      value={selectedAccountId}
+                      onChange={(v) => setSelectedAccountId(v)}
+                      options={accounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon }))}
+                      required
+                    />
+                  </label>
+                  <label className="transaction-dialog-field">Destination
+                    <IconSelect
+                      name="toAccountId"
+                      value={selectedToAccountId}
+                      onChange={(v) => { setSelectedToAccountId(v); setSelectedGoalId(""); }}
+                      options={[{ value: "", label: "To account" }].concat(destinationAccounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
+                      required
+                    />
+                  </label>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</div>
+                      <IconSelect
+                        name="accountId"
+                        value={selectedAccountId}
+                        onChange={(v) => setSelectedAccountId(v)}
+                        options={accounts.map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon }))}
+                        required
+                      />
+                    </div>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                        <path d="M1.75 8h10.5M9.75 4.75L13 8l-3.25 3.25" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Goal</div>
+                      <IconSelect
+                        name="goalId"
+                        value={selectedGoalId}
+                        onChange={(v) => { setSelectedGoalId(v); setSelectedToAccountId(""); }}
+                        options={[{ value: "", label: "Select goal" }].concat(goals.map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
-              </label>
+              )}
             </>
           ) : (
             <>
@@ -147,6 +175,7 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
                   required
                 />
               </label>
+
             </>
           )}
           <label className="transaction-dialog-field">Name<input name="name" defaultValue={transaction.name} placeholder="Optional note" /></label>
