@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { buildMonthKey, formatMonthLabel, parseMonthValue } from "@/lib/budgets";
-import TransactionsTable from "@/components/TransactionsTable";
+import TransactionsTable, { type TransactionItem } from "@/components/TransactionsTable";
 import { ensureMonthSnapshot } from "@/lib/month-snapshots";
 import PageHeader from "@/components/PageHeader";
+import { transactionTablePresets } from "@/components/transaction-table-presets";
 
 export const dynamic = "force-dynamic";
 
@@ -18,27 +19,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
   const nextMonthKey = buildMonthKey(nextMonthDate.getFullYear(), nextMonthDate.getMonth() + 1);
   const todayMonthKey = buildMonthKey(new Date().getFullYear(), new Date().getMonth() + 1);
 
-  let transactionsTableItems: Array<{
-    id: number;
-    date: string;
-    name: string;
-    description: string;
-    tags: string[];
-    amount: number;
-    currency: string;
-    type: string;
-    accountId: number;
-    toAccountId: number | null;
-    goalId: number | null;
-    monthCategoryId: number;
-    allocationState: string;
-    allocationOutcome: string | null;
-    allocationOutcomeAmount: number;
-    account: { id: number; name: string; icon: string | null };
-    toAccount: { id: number; name: string; icon: string | null } | null;
-    goal: { id: number; name: string; icon: string | null } | null;
-    category: { id: number; name: string; type: string; icon: string | null };
-  }> = [];
+  let transactionsTableItems: TransactionItem[] = [];
   let accounts: Array<{ id: number; name: string; icon: string | null }> = [];
   let goals: Array<{ id: number; name: string; icon: string | null }> = [];
   let typedCategories: Array<{ id: number; name: string; type: string; icon: string | null }> = [];
@@ -147,6 +128,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
         previousMonthKey={previousMonthKey}
         nextMonthKey={nextMonthKey}
         todayMonthKey={todayMonthKey}
+        preset={transactionTablePresets.full}
       />
     </div>
   );

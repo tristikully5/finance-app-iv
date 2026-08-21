@@ -11,11 +11,12 @@ import {
   getCategoryTypeDefaultIconValue,
 } from "@/lib/icon-options";
 import { useMemo, useState, useEffect } from "react";
+import { transactionTablePresets, type TransactionTablePreset, type TransactionTableView } from "@/components/transaction-table-presets";
 
-type AccountOption = { id: number; name: string; icon: string | null };
-type CategoryOption = { id: number; name: string; type: string; icon?: string | null };
-type GoalOption = { id: number; name: string; icon: string | null };
-type TransactionItem = {
+export type AccountOption = { id: number; name: string; icon: string | null };
+export type CategoryOption = { id: number; name: string; type: string; icon?: string | null };
+export type GoalOption = { id: number; name: string; icon: string | null };
+export type TransactionItem = {
   id: number;
   date: string;
   name: string;
@@ -37,9 +38,7 @@ type TransactionItem = {
   category: CategoryOption;
 };
 
-type ViewMode = "table" | "calendar";
-
-type TransactionsTableProps = {
+export type TransactionsTableProps = {
   transactions: TransactionItem[];
   accounts: AccountOption[];
   categories: CategoryOption[];
@@ -49,6 +48,7 @@ type TransactionsTableProps = {
   previousMonthKey: string;
   nextMonthKey: string;
   todayMonthKey: string;
+  preset?: TransactionTablePreset;
 };
 
 function parseMonthKey(value: string) {
@@ -325,10 +325,11 @@ export default function TransactionsTable({
   previousMonthKey,
   nextMonthKey,
   todayMonthKey,
+  preset = transactionTablePresets.full,
 }: TransactionsTableProps) {
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [viewMode, setViewMode] = useState<TransactionTableView>(preset.initialView);
   const [transactionColors] = useState<TransactionColors>(() => ({
     Income: getCategoryTypeDefaultColorValue("Income"),
     Expense: getCategoryTypeDefaultColorValue("Expense"),
@@ -341,7 +342,7 @@ export default function TransactionsTable({
     try {
       const saved = window.localStorage.getItem("finance:transactions-view");
       if (saved === "table" || saved === "calendar") {
-        setViewMode(saved as ViewMode);
+        setViewMode(saved as TransactionTableView);
       }
     } catch (e) {
       // ignore localStorage errors (e.g., privacy mode)
@@ -350,7 +351,7 @@ export default function TransactionsTable({
   const [typeFilter, setTypeFilter] = useState<"All" | "Income" | "Expense" | "Transfer" | "Allocate">("All");
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
 
-  const setViewModeAndPersist = (next: ViewMode) => {
+  const setViewModeAndPersist = (next: TransactionTableView) => {
     setViewMode(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem("finance:transactions-view", next);
@@ -362,6 +363,8 @@ export default function TransactionsTable({
       document.documentElement.style.setProperty(`--transaction-${type.toLowerCase()}-color`, color);
     });
   }, [transactionColors]);
+
+  const activeView = viewMode === "table" && preset.showTableView ? "table" : "calendar";
 
   const filteredTransactions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -473,42 +476,46 @@ export default function TransactionsTable({
     <>
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <Link href={`/transactions?month=${previousMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Previous month">‹</Link>
-              <div className="flex h-9 min-w-32 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-800">
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
-                {monthLabel}
-                <span aria-hidden="true" className="text-slate-400">⌄</span>
+          {preset.showMonthNavigation ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Link href={`/transactions?month=${previousMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Previous month">‹</Link>
+                <div className="flex h-9 min-w-32 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-800">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
+                  {monthLabel}
+                  <span aria-hidden="true" className="text-slate-400">⌄</span>
+                </div>
+                <Link href={`/transactions?month=${nextMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Next month">›</Link>
+                <Link href={`/transactions?month=${todayMonthKey}`} className="ml-1 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Today</Link>
               </div>
-              <Link href={`/transactions?month=${nextMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Next month">›</Link>
-              <Link href={`/transactions?month=${todayMonthKey}`} className="ml-1 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Today</Link>
             </div>
-          </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setViewModeAndPersist("calendar")}
-                className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${viewMode === "calendar" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
-              >
-                Calendar
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewModeAndPersist("table")}
-                className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${viewMode === "table" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
-              >
-                Table
-              </button>
-            </div>
+            {preset.showViewToggle ? (
+              <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
+                {preset.showCalendarView ? <button
+                  type="button"
+                  onClick={() => setViewModeAndPersist("calendar")}
+                  className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${activeView === "calendar" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
+                >
+                  Calendar
+                </button> : null}
+                {preset.showTableView ? <button
+                  type="button"
+                  onClick={() => setViewModeAndPersist("table")}
+                  className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${activeView === "table" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
+                >
+                  Table
+                </button> : null}
+              </div>
+            ) : null}
 
-            <label className="relative">
+            {preset.showSearch ? <label className="relative">
               <span className="sr-only">Search transactions</span>
               <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search transactions..." className="h-9 w-44 rounded-lg border border-slate-200 px-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-            </label>
-            <label className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600">
+            </label> : null}
+            {preset.showTypeFilter ? <label className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600">
               <FilterIcon />
               <span className="sr-only">Filter transactions</span>
               <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as typeof typeFilter)} className="bg-transparent outline-none">
@@ -518,14 +525,14 @@ export default function TransactionsTable({
                 <option value="Transfer">Transfer</option>
                 <option value="Allocate">Allocate</option>
               </select>
-            </label>
-            <QuickAddShell kind="transaction" accounts={accounts} categories={categories} goals={goals} buttonClassName="flex h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" buttonContent="＋ Add transaction" />
+            </label> : null}
+            {preset.showQuickAdd ? <QuickAddShell kind="transaction" accounts={accounts} categories={categories} goals={goals} buttonClassName="flex h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" buttonContent="＋ Add transaction" /> : null}
           </div>
         </div>
 
-        <div className="p-4 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-4">
+        <div className={`p-4 ${preset.showSummaryPanels ? "xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-4" : ""}`}>
           <div className="min-w-0">
-            {viewMode === "table" ? (
+            {activeView === "table" ? (
               <>
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                   <div className="overflow-x-auto">
@@ -548,8 +555,10 @@ export default function TransactionsTable({
                             <button type="button" onClick={() => setExpandedDays((current) => ({ ...current, [day]: !isOpen }))} className="transaction-day-grid w-full items-center bg-slate-50 px-4 py-2.5 text-left hover:bg-slate-100">
                               <span className="flex items-center gap-2 text-xs font-semibold text-slate-800"><span className={`text-[10px] transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span><CalendarIcon />{formatDay(`${day}T12:00:00`)}</span>
                               <span />
-                              {hasSeparateTotals ? <span className="col-start-3 justify-self-end text-right text-xs font-semibold text-slate-600" title="Transfers and allocations" aria-label="Transfers and allocations total">{formatCurrencyLabel(dayNonCashTotal, dayTransactions[0]?.currency ?? "SGD")}</span> : <span />}
-                              <span className={`col-start-4 justify-self-end text-right text-xs font-semibold ${dayBalanceClass}`} title={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"} aria-label={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"}>{formatCurrencyLabel(dayBalance, dayTransactions[0]?.currency ?? "SGD")}</span>
+                              {preset.showDayTotals ? <>
+                                {hasSeparateTotals ? <span className="col-start-3 justify-self-end text-right text-xs font-semibold text-slate-600" title="Transfers and allocations" aria-label="Transfers and allocations total">{formatCurrencyLabel(dayNonCashTotal, dayTransactions[0]?.currency ?? "SGD")}</span> : <span />}
+                                <span className={`col-start-4 justify-self-end text-right text-xs font-semibold ${dayBalanceClass}`} title={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"} aria-label={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"}>{formatCurrencyLabel(dayBalance, dayTransactions[0]?.currency ?? "SGD")}</span>
+                              </> : null}
                             </button>
 
                             {isOpen ? dayTransactions.map((transaction) => {
@@ -610,7 +619,7 @@ export default function TransactionsTable({
                                   )}
                                 </div>
                                 <div className={`flex flex-col items-end gap-1 text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
-                                  {status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
+                                  {preset.showAllocationStatus && status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
                                   <div className="flex items-center justify-end gap-1.5">
                                     {hasSpentAmountChange ? <>
                                       <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right text-[11px] font-normal text-slate-400 line-through" />
@@ -673,7 +682,7 @@ export default function TransactionsTable({
                                 </span>
                                 <span className={`truncate font-semibold ${isReleasedAllocation ? "line-through" : ""}`}>{transaction.name}</span>
                               </div>
-                              {status ? <span className={`transaction-status-badge ${allocationStatusClass(status)} mt-1`}>{status}</span> : null}
+                              {preset.showAllocationStatus && status ? <span className={`transaction-status-badge ${allocationStatusClass(status)} mt-1`}>{status}</span> : null}
                               <div className="mt-1 flex items-center justify-between gap-1 text-[9px] font-medium">
                                 <span className="truncate">{transaction.account.name}</span>
                                 <span className={`flex shrink-0 items-center gap-1 ${isIncome ? "text-emerald-900" : "text-rose-700"}`}>
@@ -708,7 +717,7 @@ export default function TransactionsTable({
           )}
         </div>
 
-        <aside className="mt-4 space-y-4 xl:mt-0">
+        {preset.showSummaryPanels ? <aside className="mt-4 space-y-4 xl:mt-0">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -762,7 +771,7 @@ export default function TransactionsTable({
               )) : <div className="text-center text-[11px] text-slate-500">No expense data</div>}
             </div>
           </div>
-        </aside>
+        </aside> : null}
         </div>
       </section>
 
