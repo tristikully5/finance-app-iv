@@ -206,7 +206,8 @@ body {
 }
 
 .transaction-row-grid {
-  grid-template-columns: 8.5rem minmax(12rem, 1.5fr) 7.5rem;
+  grid-template-columns: minmax(11rem, 1.1fr) minmax(15rem, 1.8fr) 8rem;
+  gap: 1rem;
 }
 
 .transaction-context-menu {

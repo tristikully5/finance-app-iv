@@ -253,6 +253,10 @@ function allocationStatusClass(status: string | null) {
   return "transaction-status-allocated";
 }
 
+function transactionCategoryLabel(category: CategoryOption) {
+  return category.type === "Allocate" && category.name === "Allocate" ? "Goal allocation" : category.name;
+}
+
 function getTypeFallbackIcon(type: string) {
   if (type === "Transfer") return getCategoryTypeDefaultIconValue("Transfer");
   if (type === "Allocate") return getCategoryTypeDefaultIconValue("Allocate");
@@ -566,7 +570,7 @@ export default function TransactionsTable({
                                     type="select"
                                     options={categories
                                       .filter((item) => item.type === transaction.type)
-                                      .map((item) => ({ label: item.name, value: String(item.id), icon: item.icon || getTypeFallbackIcon(transaction.type) }))}
+                                      .map((item) => ({ label: transactionCategoryLabel(item), value: String(item.id), icon: item.icon || getTypeFallbackIcon(transaction.type) }))}
                                     onSave={(value) => makeUpdateForm(transaction, { monthCategoryId: Number(value) || transaction.monthCategoryId })}
                                     className="min-w-0 truncate font-semibold text-slate-800"
                                   />
