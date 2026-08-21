@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import StandardDialog from "@/components/StandardDialog";
 
 type QuickAddPopoverProps = {
   title: string;
@@ -46,24 +47,10 @@ export default function QuickAddPopover({ title, children, buttonClassName, butt
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]">
-          <div
-            ref={panelRef}
-            className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
-          >
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">▧</span><h2 className="text-xl font-bold text-slate-950">{title}</h2></div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="text-gray-500 transition hover:text-gray-700"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="space-y-3">{children}</div>
-          </div>
+        <div ref={panelRef}>
+          <StandardDialog title={title} onClose={() => setOpen(false)}>
+            {children}
+          </StandardDialog>
         </div>
       ) : null}
     </div>

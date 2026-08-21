@@ -6,10 +6,11 @@ import { createGoal } from "@/app/goals/actions";
 import { createTransaction } from "@/app/transactions/actions";
 import AmountInput from "@/components/AmountInput";
 import IconPicker from "@/components/IconPicker";
-import IconSelect from "@/components/IconSelect";
+import TransactionDialogFields, { type TransactionType } from "@/components/TransactionDialogFields";
+import { transactionDialogPresets, type TransactionDialogPreset } from "@/components/transaction-dialog-presets";
 import { useRouter } from "next/navigation";
 import { defaultIconValue, getCategoryTypeDefaultColorValue, getCategoryTypeDefaultIconValue, getDefaultIconValue } from "@/lib/icon-options";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 type AccountOption = { id: number; name: string; icon?: string | null };
 type CategoryOption = { id: number; name: string; type: string; icon?: string | null };
@@ -223,30 +224,24 @@ export function QuickAddGoalForm({ onDone }: { onDone?: () => void }) {
 
 export function QuickAddTransactionForm({
   onDone,
-  accounts,
-  categories,
-  goals,
+  accounts = [],
+  categories = [],
+  goals = [],
+  preset = transactionDialogPresets.add,
 }: {
   onDone?: () => void;
   accounts?: AccountOption[];
   categories?: CategoryOption[];
   goals?: GoalOption[];
+  preset?: TransactionDialogPreset;
 }) {
   const [isPending, startTransition] = useTransition();
-  const [selectedType, setSelectedType] = useState<"Expense" | "Income" | "Transfer" | "Allocate">("Expense");
-  const [fromAccountId, setFromAccountId] = useState<string>("");
-  const [selectedToAccountId, setSelectedToAccountId] = useState<string>("");
-  const [selectedGoalId, setSelectedGoalId] = useState<string>("");
-
-  const filteredCategories = useMemo(
-    () => (categories ?? []).filter((category) => category.type === selectedType),
-    [categories, selectedType]
-  );
-
-  const destinationAccounts = useMemo(
-    () => (accounts ?? []).filter((account) => String(account.id) !== fromAccountId),
-    [accounts, fromAccountId]
-  );
+  const [selectedType, setSelectedType] = useState<TransactionType>("Expense");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [selectedToAccountId, setSelectedToAccountId] = useState("");
+  const [selectedGoalId, setSelectedGoalId] = useState("");
+  const [description, setDescription] = useState("");
+  const [tagsValue, setTagsValue] = useState("");
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -258,139 +253,47 @@ export function QuickAddTransactionForm({
       onDone?.();
       form.reset();
       setSelectedType("Expense");
-      setFromAccountId("");
+      setSelectedAccountId("");
       setSelectedToAccountId("");
       setSelectedGoalId("");
+      setDescription("");
+      setTagsValue("");
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <FieldRow label="Type">
-        <div className="inline-flex w-full rounded-lg border border-slate-200 bg-white p-1">
-          {[
-            { label: "Income", value: "Income" },
-            { label: "Expense", value: "Expense" },
-            { label: "Transfer", value: "Transfer" },
-            { label: "Allocate", value: "Allocate" },
-          ].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSelectedType(option.value as "Expense" | "Income" | "Transfer" | "Allocate")}
-              className={`flex-1 rounded-md px-2 py-2 text-xs font-semibold transition ${selectedType === option.value ? option.value === "Income" ? "bg-emerald-50 text-emerald-700" : option.value === "Expense" ? "bg-rose-50 text-rose-700" : option.value === "Transfer" ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700" : "text-slate-500 hover:bg-slate-50"}`}
-            >
-              <span className="mr-1">{option.value === "Income" ? "↑" : option.value === "Expense" ? "↓" : option.value === "Transfer" ? "↔" : "◎"}</span>{option.label}
-            </button>
-          ))}
-        </div>
-        <input type="hidden" name="type" value={selectedType} />
-      </FieldRow>
-
-      <FieldRow label="Date">
-        <input name="date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-      </FieldRow>
-      <FieldRow label="Amount">
-        <div className="grid w-full grid-cols-3 gap-2">
-          <AmountInput name="amount" defaultValue={0} placeholder="Amount" className="col-span-2 w-full rounded border p-2" />
-          <select name="currency" className="col-span-1 w-full rounded border p-2" defaultValue="SGD">
-            <option>SGD</option>
-            <option>USD</option>
-            <option>EUR</option>
-          </select>
-        </div>
-      </FieldRow>
-
-      {selectedType === "Transfer" || selectedType === "Allocate" ? (
-        <>
-          <FieldRow label="Category">
-            <input value={selectedType === "Transfer" ? "Transfer (auto)" : "Allocate (auto)"} disabled className="w-full rounded border border-slate-200 bg-slate-50 p-2 text-slate-500" />
-          </FieldRow>
-          {selectedType === "Transfer" ? (
-            <>
-              <FieldRow label="From">
-                <IconSelect
-                  name="fromAccountId"
-                  value={fromAccountId}
-                  onChange={(v) => setFromAccountId(v)}
-                  options={[{ value: "", label: "Select source account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-                  required
-                />
-              </FieldRow>
-              <FieldRow label="Destination">
-                <IconSelect
-                  name="toAccountId"
-                  value={selectedToAccountId}
-                  onChange={(v) => { setSelectedToAccountId(v); setSelectedGoalId(""); }}
-                  options={[{ value: "", label: "To account" }].concat((destinationAccounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-                  required
-                />
-              </FieldRow>
-            </>
-          ) : (
-            <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3">
-              <label className="text-xs font-medium text-slate-700">Destination</label>
-              <div className="flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <IconSelect
-                    name="fromAccountId"
-                    value={fromAccountId}
-                    onChange={(v) => setFromAccountId(v)}
-                    options={[{ value: "", label: "From account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-                    required
-                  />
-                </div>
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600">
-                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                    <path d="M1.75 8h10.5M9.75 4.75L13 8l-3.25 3.25" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <IconSelect
-                    name="goalId"
-                    value={selectedGoalId}
-                    onChange={(v) => { setSelectedGoalId(v); setSelectedToAccountId(""); }}
-                    options={[{ value: "", label: "Goal" }].concat((goals ?? []).map((goal) => ({ value: String(goal.id), label: goal.name, icon: (goal as any).icon })))}
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          <FieldRow label="Name">
-            <input name="name" placeholder="Optional note" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-          </FieldRow>
-          <FieldRow label="Description">
-            <textarea name="description" placeholder="More details about the transaction" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-          </FieldRow>
-          <FieldRow label="Tags">
-            <input name="tags" placeholder="comma,separated,tags" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-          </FieldRow>
-        </>
-      ) : (
-        <>
-          <FieldRow label="Category">
-            <IconSelect
-              name="monthCategoryId"
-              defaultValue={filteredCategories[0] ? String(filteredCategories[0].id) : ""}
-              options={filteredCategories.length === 0 ? [{ value: "", label: `No ${selectedType.toLowerCase()} categories` }] : filteredCategories.map((category) => ({ value: String(category.id), label: category.name, icon: (category as any).icon }))}
-              required={filteredCategories.length > 0}
-            />
-          </FieldRow>
-          <FieldRow label="Account">
-            <IconSelect
-              name="accountId"
-              options={[{ value: "", label: "Select account" }].concat((accounts ?? []).map((account) => ({ value: String(account.id), label: account.name, icon: (account as any).icon })))}
-              required
-            />
-          </FieldRow>
-          <FieldRow label="Name">
-            <input name="name" placeholder="Optional note" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-          </FieldRow>
-        </>
-      )}
-      <div className="flex justify-end pt-1">
-        <button disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
+    <form onSubmit={handleSubmit}>
+      <TransactionDialogFields
+        preset={preset}
+        mode="add"
+        selectedType={selectedType}
+        onTypeChange={(type) => {
+          setSelectedType(type);
+          setSelectedToAccountId("");
+          setSelectedGoalId("");
+        }}
+        accounts={accounts}
+        categories={categories}
+        goals={goals}
+        selectedAccountId={selectedAccountId}
+        onAccountChange={setSelectedAccountId}
+        selectedToAccountId={selectedToAccountId}
+        onToAccountChange={(value) => {
+          setSelectedToAccountId(value);
+          setSelectedGoalId("");
+        }}
+        selectedGoalId={selectedGoalId}
+        onGoalChange={(value) => {
+          setSelectedGoalId(value);
+          setSelectedToAccountId("");
+        }}
+        description={description}
+        onDescriptionChange={setDescription}
+        tagsValue={tagsValue}
+        onTagsChange={setTagsValue}
+      />
+      <div className="mt-5 flex justify-end pt-1">
+        <button disabled={isPending} className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
           {isPending ? "Saving..." : "Save"}
         </button>
       </div>
