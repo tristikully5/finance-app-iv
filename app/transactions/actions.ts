@@ -55,22 +55,58 @@ function isMissingColumnError(error: unknown, columnNames: string[] | string) {
   return cols.some((c) => msg.includes(c.toLowerCase()));
 }
 
+async function recalculateConcludedGoalAllocations(tx: Prisma.TransactionClient, goalId: number) {
+  const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { status: true, amountUsed: true } });
+  if (!goal || goal.status !== "Concluded") return;
+
+  const allocations = await tx.transaction.findMany({
+    where: { goalId, type: "Allocate" },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
+    select: { id: true, amount: true, allocationState: true, allocationOutcome: true, allocationOutcomeAmount: true },
+  });
+  const hasConcludedAllocations = allocations.some((allocation) => allocation.allocationState === "Concluded");
+  const spentFromOutcomes = allocations.reduce((sum, allocation) => sum + (allocation.allocationState === "Concluded" && allocation.allocationOutcome === "Spent" ? Math.max(allocation.allocationOutcomeAmount, 0) : 0), 0);
+  const actualSpent = hasConcludedAllocations ? spentFromOutcomes : Math.max(goal.amountUsed, 0);
+
+  let remainingSpent = actualSpent;
+  for (const allocation of allocations) {
+    const originalAmount = Math.max(allocation.amount, 0);
+    const consumedAmount = Math.min(originalAmount, remainingSpent);
+    const outcome = originalAmount <= 0 ? "Cancelled" : consumedAmount > 0 ? "Spent" : "Released";
+    const outcomeAmount = originalAmount <= 0 ? 0 : consumedAmount > 0 ? consumedAmount : originalAmount;
+
+    await tx.transaction.update({
+      where: { id: allocation.id },
+      data: {
+        allocationState: "Concluded",
+        allocationOutcome: outcome,
+        allocationOutcomeAmount: outcomeAmount,
+      },
+    });
+
+    remainingSpent = Math.max(0, remainingSpent - originalAmount);
+  }
+
+  await tx.goal.update({ where: { id: goalId }, data: { amountUsed: actualSpent } });
+}
+
 async function syncGoalAmountUsed(tx: Prisma.TransactionClient, goalIds: number[]) {
   const uniqueGoalIds = [...new Set(goalIds.filter((goalId) => goalId > 0))];
 
   await Promise.all(
     uniqueGoalIds.map(async (goalId) => {
+      const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { status: true } });
+      if (goal?.status === "Concluded") {
+        await recalculateConcludedGoalAllocations(tx, goalId);
+        return;
+      }
+
       const totals = await tx.transaction.aggregate({
         where: { goalId },
         _sum: { amount: true },
       });
 
-      await tx.goal.update({
-        where: { id: goalId },
-        data: {
-          amountUsed: totals._sum.amount ?? 0,
-        },
-      });
+      await tx.goal.update({ where: { id: goalId }, data: { amountUsed: totals._sum.amount ?? 0 } });
     })
   );
 }
@@ -430,10 +466,10 @@ export async function updateTransaction(formData: FormData) {
     }
 
     const allocateMonthCategoryId = await ensureAutoMonthCategory(parsedDate, "Allocate");
-    const preserveConclusion = existingTransaction?.allocationState === "Concluded" && amount === existingTransaction.amount;
-    const nextAllocationState = preserveConclusion ? "Concluded" : "Allocated";
-    const nextAllocationOutcome = preserveConclusion ? existingTransaction.allocationOutcome : null;
-    const nextAllocationOutcomeAmount = preserveConclusion ? existingTransaction.allocationOutcomeAmount : 0;
+    const hasConclusion = existingTransaction?.allocationState === "Concluded";
+    const nextAllocationState = hasConclusion ? "Concluded" : "Allocated";
+    const nextAllocationOutcome = hasConclusion ? existingTransaction.allocationOutcome : null;
+    const nextAllocationOutcomeAmount = hasConclusion ? existingTransaction.allocationOutcomeAmount : 0;
     const needSyncGoals: number[] = [];
     await prisma.$transaction(async (tx) => {
       const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { id: true } });
