@@ -339,7 +339,15 @@ export async function updateTransaction(formData: FormData) {
   const parsedDate = new Date(date);
   const existingTransaction = await prisma.transaction.findUnique({
     where: { id },
-    select: { goalId: true, accountId: true, toAccountId: true },
+    select: {
+      goalId: true,
+      accountId: true,
+      toAccountId: true,
+      amount: true,
+      allocationState: true,
+      allocationOutcome: true,
+      allocationOutcomeAmount: true,
+    },
   });
 
   if (selectedType === "Transfer") {
@@ -422,6 +430,10 @@ export async function updateTransaction(formData: FormData) {
     }
 
     const allocateMonthCategoryId = await ensureAutoMonthCategory(parsedDate, "Allocate");
+    const preserveConclusion = existingTransaction?.allocationState === "Concluded" && amount === existingTransaction.amount;
+    const nextAllocationState = preserveConclusion ? "Concluded" : "Allocated";
+    const nextAllocationOutcome = preserveConclusion ? existingTransaction.allocationOutcome : null;
+    const nextAllocationOutcomeAmount = preserveConclusion ? existingTransaction.allocationOutcomeAmount : 0;
     const needSyncGoals: number[] = [];
     await prisma.$transaction(async (tx) => {
       const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { id: true } });
@@ -443,7 +455,9 @@ export async function updateTransaction(formData: FormData) {
             accountId: sourceAccountId,
             toAccountId: null,
             goalId,
-            allocationState: "Allocated",
+            allocationState: nextAllocationState,
+            allocationOutcome: nextAllocationOutcome,
+            allocationOutcomeAmount: nextAllocationOutcomeAmount,
             monthCategoryId: allocateMonthCategoryId,
           },
         });
@@ -454,7 +468,7 @@ export async function updateTransaction(formData: FormData) {
         }
 
         await prisma.$executeRaw(
-          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Allocate', "accountId" = ${sourceAccountId}, "toAccountId" = NULL, "goalId" = ${goalId}, "allocationState" = 'Allocated', "monthCategoryId" = ${allocateMonthCategoryId} WHERE "id" = ${id}`
+          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Allocate', "accountId" = ${sourceAccountId}, "toAccountId" = NULL, "goalId" = ${goalId}, "allocationState" = ${nextAllocationState}, "allocationOutcome" = ${nextAllocationOutcome}, "allocationOutcomeAmount" = ${nextAllocationOutcomeAmount}, "monthCategoryId" = ${allocateMonthCategoryId} WHERE "id" = ${id}`
         );
         needSyncGoals.push(existingTransaction?.goalId ?? 0, goalId);
       }
