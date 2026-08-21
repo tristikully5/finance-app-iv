@@ -82,10 +82,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
   const transactions = goal.allocations ?? [];
   const totalAllocated = transactions.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
   const totalUsedFromExpenses = transactions.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
-  const concludedSpent = transactions.reduce((sum, transaction) => sum + (transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent" ? Math.max(transaction.allocationOutcomeAmount, 0) : 0), 0);
-  const activeAllocationAmount = transactions.reduce((sum, transaction) => sum + (transaction.allocationState !== "Concluded" && transaction.amount > 0 ? transaction.amount : 0), 0);
-  const hasConcludedAllocations = transactions.some((transaction) => transaction.allocationState === "Concluded");
-  const totalSpent = goal.status === "Concluded" && hasConcludedAllocations ? concludedSpent + activeAllocationAmount : goal.status === "Concluded" ? Number(goal.amountUsed ?? totalUsedFromExpenses) : totalUsedFromExpenses;
+  const totalSpent = goal.status === "Concluded" ? Number(goal.amountUsed ?? totalUsedFromExpenses) : totalUsedFromExpenses;
   const savedSoFar = goal.status === "Concluded" ? totalSpent : Number(goal.amountUsed ?? (totalAllocated - totalUsedFromExpenses));
   const remaining = Math.max(goal.amount - savedSoFar, 0);
   const progress = getProgress(goal.amount, savedSoFar);

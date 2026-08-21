@@ -42,9 +42,7 @@ export default async function GoalsPage() {
   const normalizedGoals = goals.map((goal) => {
     const allocated = goal.allocations.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
     const spent = goal.allocations.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
-    const concludedSpent = goal.allocations.reduce((sum, transaction) => sum + (transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent" ? Math.max(transaction.allocationOutcomeAmount ?? 0, 0) : 0), 0);
-    const hasConcludedAllocations = goal.allocations.some((transaction) => transaction.allocationState === "Concluded");
-    const finalSpent = goal.status === "Concluded" && hasConcludedAllocations ? concludedSpent : goal.status === "Concluded" ? goal.amountUsed : spent;
+    const finalSpent = goal.status === "Concluded" ? goal.amountUsed : spent;
 
     return {
       ...goal,

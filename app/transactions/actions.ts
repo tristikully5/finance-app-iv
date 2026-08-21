@@ -64,9 +64,7 @@ async function recalculateConcludedGoalAllocations(tx: Prisma.TransactionClient,
     orderBy: [{ date: "asc" }, { id: "asc" }],
     select: { id: true, amount: true, allocationState: true, allocationOutcome: true, allocationOutcomeAmount: true },
   });
-  const hasConcludedAllocations = allocations.some((allocation) => allocation.allocationState === "Concluded");
-  const spentFromOutcomes = allocations.reduce((sum, allocation) => sum + (allocation.allocationState === "Concluded" && allocation.allocationOutcome === "Spent" ? Math.max(allocation.allocationOutcomeAmount, 0) : 0), 0);
-  const actualSpent = hasConcludedAllocations ? spentFromOutcomes : Math.max(goal.amountUsed, 0);
+  const actualSpent = Math.max(goal.amountUsed, 0);
 
   let remainingSpent = actualSpent;
   for (const allocation of allocations) {
@@ -86,8 +84,6 @@ async function recalculateConcludedGoalAllocations(tx: Prisma.TransactionClient,
 
     remainingSpent = Math.max(0, remainingSpent - originalAmount);
   }
-
-  await tx.goal.update({ where: { id: goalId }, data: { amountUsed: actualSpent } });
 }
 
 async function syncGoalAmountUsed(tx: Prisma.TransactionClient, goalIds: number[]) {
