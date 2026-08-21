@@ -23,25 +23,26 @@ type TransactionEditDialogProps = {
   accounts: Array<{ id: number; name: string; icon?: string | null }>;
   categories: Array<{ id: number; name: string; type: string; icon?: string | null }>;
   goals: Array<{ id: number; name: string; icon?: string | null }>;
+  tagSuggestions?: string[];
   onClose: () => void;
   preset?: TransactionDialogPreset;
 };
 
-export default function TransactionEditDialog({ transaction, accounts, categories, goals, onClose, preset = transactionDialogPresets.edit }: TransactionEditDialogProps) {
+export default function TransactionEditDialog({ transaction, accounts, categories, goals, tagSuggestions = [], onClose, preset = transactionDialogPresets.edit }: TransactionEditDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [selectedType, setSelectedType] = useState<TransactionType>(transaction.type as TransactionType);
   const [selectedAccountId, setSelectedAccountId] = useState(String(transaction.accountId));
   const [selectedToAccountId, setSelectedToAccountId] = useState(transaction.toAccountId ? String(transaction.toAccountId) : "");
   const [selectedGoalId, setSelectedGoalId] = useState(transaction.goalId ? String(transaction.goalId) : "");
   const [description, setDescription] = useState(transaction.description ?? "");
-  const [tagsValue, setTagsValue] = useState((transaction.tags ?? []).join(","));
+  const [tags, setTags] = useState<string[]>(transaction.tags ?? []);
   const router = useRouter();
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     formData.set("description", description);
-    formData.set("tags", tagsValue);
+    formData.set("tags", tags.join(","));
     startTransition(async () => {
       await updateTransaction(formData);
       onClose();
@@ -90,8 +91,9 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
           }}
           description={description}
           onDescriptionChange={setDescription}
-          tagsValue={tagsValue}
-          onTagsChange={setTagsValue}
+          tags={tags}
+        tagSuggestions={tagSuggestions}
+        onTagsChange={setTags}
         />
         <div className="mt-5 flex items-center justify-between gap-3 pt-1">
           {preset.showDelete ? (

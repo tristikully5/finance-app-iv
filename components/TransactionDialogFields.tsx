@@ -1,5 +1,6 @@
 import AmountInput from "@/components/AmountInput";
 import IconSelect from "@/components/IconSelect";
+import TagInput from "@/components/TagInput";
 import type { TransactionDialogPreset } from "@/components/transaction-dialog-presets";
 
 export type TransactionType = "Expense" | "Income" | "Transfer" | "Allocate";
@@ -36,8 +37,9 @@ type TransactionDialogFieldsProps = {
   };
   description: string;
   onDescriptionChange: (value: string) => void;
-  tagsValue: string;
-  onTagsChange: (value: string) => void;
+  tags: string[];
+  tagSuggestions?: string[];
+  onTagsChange: (tags: string[]) => void;
 };
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -73,7 +75,8 @@ export default function TransactionDialogFields({
   transaction,
   description,
   onDescriptionChange,
-  tagsValue,
+  tags,
+  tagSuggestions = [],
   onTagsChange,
 }: TransactionDialogFieldsProps) {
   const filteredCategories = categories.filter((category) => category.type === selectedType);
@@ -198,7 +201,7 @@ export default function TransactionDialogFields({
 
       {preset.showTags ? (
         <FieldRow label="Tags">
-          <input name="tags" value={tagsValue} onChange={(event) => onTagsChange(event.target.value)} placeholder="comma,separated,tags" className={inputClassName} />
+          <TagInput name="tags" tags={tags} suggestions={tagSuggestions} onChange={onTagsChange} />
         </FieldRow>
       ) : null}
     </>

@@ -5,6 +5,7 @@ import QuickAddShell from "@/app/components/QuickAddShell";
 import Link from "next/link";
 import TransactionEditDialog from "@/components/TransactionEditDialog";
 import IconDisplay from "@/components/IconDisplay";
+import TransactionTagsCell from "@/components/TransactionTagsCell";
 import { updateTransaction } from "@/app/transactions/actions";
 import {
   getCategoryTypeDefaultColorValue,
@@ -43,6 +44,7 @@ export type TransactionsTableProps = {
   accounts: AccountOption[];
   categories: CategoryOption[];
   goals: GoalOption[];
+  tagSuggestions?: string[];
   monthLabel: string;
   monthKey: string;
   previousMonthKey: string;
@@ -320,6 +322,7 @@ export default function TransactionsTable({
   accounts,
   categories,
   goals,
+  tagSuggestions = [],
   monthLabel,
   monthKey,
   previousMonthKey,
@@ -526,7 +529,7 @@ export default function TransactionsTable({
                 <option value="Allocate">Allocate</option>
               </select>
             </label> : null}
-            {preset.showQuickAdd ? <QuickAddShell kind="transaction" accounts={accounts} categories={categories} goals={goals} buttonClassName="flex h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" buttonContent="＋ Add transaction" /> : null}
+            {preset.showQuickAdd ? <QuickAddShell kind="transaction" accounts={accounts} categories={categories} goals={goals} tagSuggestions={tagSuggestions} buttonClassName="flex h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" buttonContent="＋ Add transaction" /> : null}
           </div>
         </div>
 
@@ -587,13 +590,7 @@ export default function TransactionsTable({
                                 <div className="min-w-0">
                                   <InlineEditableCell value={transaction.name} onSave={(value) => makeUpdateForm(transaction, { name: value })} className={`block truncate font-semibold text-slate-900 ${isReleasedAllocation ? "line-through" : ""}`} />
                                   {transaction.description ? <div className="mt-0.5 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
-                                  {transaction.tags && transaction.tags.length ? (
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                      {transaction.tags.map((tag) => (
-                                        <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{tag}</span>
-                                      ))}
-                                    </div>
-                                  ) : null}
+                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
 
                                   {(transaction.type === "Transfer" || transaction.type === "Allocate") ? (
                                     <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
@@ -776,7 +773,7 @@ export default function TransactionsTable({
       </section>
 
       {editingTransaction ? (
-        <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} onClose={() => setEditingTransaction(null)} />
+        <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} tagSuggestions={tagSuggestions} onClose={() => setEditingTransaction(null)} />
       ) : null}
     </>
   );

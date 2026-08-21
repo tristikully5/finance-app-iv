@@ -227,12 +227,14 @@ export function QuickAddTransactionForm({
   accounts = [],
   categories = [],
   goals = [],
+  tagSuggestions = [],
   preset = transactionDialogPresets.add,
 }: {
   onDone?: () => void;
   accounts?: AccountOption[];
   categories?: CategoryOption[];
   goals?: GoalOption[];
+  tagSuggestions?: string[];
   preset?: TransactionDialogPreset;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -241,7 +243,7 @@ export function QuickAddTransactionForm({
   const [selectedToAccountId, setSelectedToAccountId] = useState("");
   const [selectedGoalId, setSelectedGoalId] = useState("");
   const [description, setDescription] = useState("");
-  const [tagsValue, setTagsValue] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -257,7 +259,7 @@ export function QuickAddTransactionForm({
       setSelectedToAccountId("");
       setSelectedGoalId("");
       setDescription("");
-      setTagsValue("");
+      setTags([]);
     });
   };
 
@@ -289,8 +291,9 @@ export function QuickAddTransactionForm({
         }}
         description={description}
         onDescriptionChange={setDescription}
-        tagsValue={tagsValue}
-        onTagsChange={setTagsValue}
+        tags={tags}
+        tagSuggestions={tagSuggestions}
+        onTagsChange={setTags}
       />
       <div className="mt-5 flex justify-end pt-1">
         <button disabled={isPending} className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">

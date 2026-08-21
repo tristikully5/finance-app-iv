@@ -23,11 +23,12 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
   let accounts: Array<{ id: number; name: string; icon: string | null }> = [];
   let goals: Array<{ id: number; name: string; icon: string | null }> = [];
   let typedCategories: Array<{ id: number; name: string; type: string; icon: string | null }> = [];
+  let tagSuggestions: string[] = [];
 
   try {
     await ensureMonthSnapshot(selectedMonth.key);
 
-    const [transactions, fetchedAccounts, fetchedCategories, fetchedGoals] = await Promise.all([
+    const [transactions, fetchedAccounts, fetchedCategories, fetchedGoals, taggedTransactions] = await Promise.all([
       prisma.transaction.findMany({
         where: {
           date: { gte: startOfMonth, lte: endOfMonth },
@@ -60,6 +61,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       }),
       prisma.goal.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, icon: true } }),
+      prisma.transaction.findMany({ select: { tags: true } }),
     ]);
 
     const accountsById = new Map(fetchedAccounts.map((account) => [account.id, account]));
@@ -100,6 +102,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
     accounts = fetchedAccounts.map((account) => ({ id: account.id, name: account.name, icon: account.icon ?? null }));
     goals = fetchedGoals;
     typedCategories = fetchedCategories.map((category) => ({ id: category.id, name: category.name, type: category.type, icon: category.icon }));
+    tagSuggestions = [...new Set(taggedTransactions.flatMap((transaction) => transaction.tags.map((tag) => tag.trim()).filter(Boolean)))];
   } catch (error) {
     console.error("Failed to load transactions:", error);
     return (
@@ -123,6 +126,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
         accounts={accounts}
         categories={typedCategories}
         goals={goals}
+        tagSuggestions={tagSuggestions}
         monthLabel={formatMonthLabel(selectedMonth.year, selectedMonth.month)}
         monthKey={selectedMonth.key}
         previousMonthKey={previousMonthKey}

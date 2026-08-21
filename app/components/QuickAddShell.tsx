@@ -9,6 +9,7 @@ type QuickAddShellProps = {
   accounts?: Array<{ id: number; name: string }>;
   categories?: Array<{ id: number; name: string; type: string }>;
   goals?: Array<{ id: number; name: string }>;
+  tagSuggestions?: string[];
   buttonClassName?: string;
   buttonContent?: React.ReactNode;
   categoryType?: "Expense" | "Income";
@@ -16,7 +17,7 @@ type QuickAddShellProps = {
   transactionPreset?: TransactionDialogPreset;
 };
 
-export default function QuickAddShell({ kind, accounts = [], categories = [], goals = [], buttonClassName, buttonContent, categoryType, wrapperClassName, transactionPreset }: QuickAddShellProps) {
+export default function QuickAddShell({ kind, accounts = [], categories = [], goals = [], tagSuggestions = [], buttonClassName, buttonContent, categoryType, wrapperClassName, transactionPreset }: QuickAddShellProps) {
   const title =
     kind === "account"
       ? "Add account"
@@ -35,7 +36,7 @@ export default function QuickAddShell({ kind, accounts = [], categories = [], go
       ) : kind === "goal" ? (
         <QuickAddGoalForm />
       ) : (
-        <QuickAddTransactionForm accounts={accounts} categories={categories} goals={goals} preset={transactionPreset} />
+        <QuickAddTransactionForm accounts={accounts} categories={categories} goals={goals} tagSuggestions={tagSuggestions} preset={transactionPreset} />
       )}
     </QuickAddPopover>
   );
