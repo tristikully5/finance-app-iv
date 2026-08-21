@@ -135,14 +135,22 @@ export default function TransactionDialogFields({
       ) : null}
 
       {selectedType === "Transfer" && preset.showDestination ? (
-        <>
-          <FieldRow label="From">
-            <IconSelect name={sourceFieldName} value={selectedAccountId} onChange={onAccountChange} options={accounts.map((account) => ({ value: String(account.id), label: account.name, icon: account.icon }))} required className="min-w-0" />
-          </FieldRow>
-          <FieldRow label="Destination">
-            <IconSelect name="toAccountId" value={selectedToAccountId} onChange={onToAccountChange} options={[{ value: "", label: "To account" }].concat(destinationAccounts.map((account) => ({ value: String(account.id), label: account.name, icon: account.icon })))} required />
-          </FieldRow>
-        </>
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3">
+          <label className="text-xs font-medium text-slate-700">Destination</label>
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</div>
+              <IconSelect name={sourceFieldName} value={selectedAccountId} onChange={onAccountChange} options={[{ value: "", label: "From account" }].concat(accounts.map((account) => ({ value: String(account.id), label: account.name, icon: account.icon })))} required />
+            </div>
+            <span className="mt-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-700" aria-hidden="true">
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1.75 8h10.5M9.75 4.75 13 8l-3.25 3.25" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">To</div>
+              <IconSelect name="toAccountId" value={selectedToAccountId} onChange={onToAccountChange} options={[{ value: "", label: "To account" }].concat(destinationAccounts.map((account) => ({ value: String(account.id), label: account.name, icon: account.icon })))} required />
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {selectedType === "Allocate" && preset.showDestination ? (
