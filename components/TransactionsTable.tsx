@@ -561,7 +561,7 @@ export default function TransactionsTable({
                               </> : null}
                             </button>
 
-                            {isOpen ? <div className="flex flex-col gap-3 bg-slate-50/60 py-3">{dayTransactions.map((transaction) => {
+                            {isOpen ? dayTransactions.map((transaction) => {
                               const isIncome = transaction.type === "Income";
                               const isReleasedAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Released";
                               const isSpentAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent";
@@ -628,7 +628,7 @@ export default function TransactionsTable({
                                   </div>
                                 </div>
                             </div>;
-                          })}</div> : null}
+                          }) : null}
                         </div>
                       );
                     })}

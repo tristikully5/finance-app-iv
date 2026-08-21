@@ -262,7 +262,7 @@ export function QuickAddTransactionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="space-y-3">
       <TransactionDialogFields
         preset={preset}
         mode="add"

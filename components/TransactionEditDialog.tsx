@@ -61,7 +61,7 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
 
   return (
     <StandardDialog title="Edit transaction" onClose={onClose}>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-3">
         <input type="hidden" name="id" value={transaction.id} />
         <TransactionDialogFields
           preset={preset}
