@@ -613,8 +613,8 @@ export default function TransactionsTable({
                                   )}
                                 </div>
                                 <div className="min-w-0 self-start">
-                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
                                   {transaction.description ? <div className="mt-1 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
+                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
                                 </div>
                                 <div className={`flex flex-col items-end gap-1 text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
                                   {preset.showAllocationStatus && status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
