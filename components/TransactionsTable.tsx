@@ -587,10 +587,6 @@ export default function TransactionsTable({
                                     className="min-w-0 truncate font-semibold text-slate-800"
                                   />
                                 </div>
-                                <div className="min-w-0 self-start">
-                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
-                                  {transaction.description ? <div className="mt-1 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
-                                </div>
                                 <div className="min-w-0">
                                   <InlineEditableCell value={transaction.name} onSave={(value) => makeUpdateForm(transaction, { name: value })} className={`block truncate font-semibold text-slate-900 ${isReleasedAllocation ? "line-through" : ""}`} />
                                   {(transaction.type === "Transfer" || transaction.type === "Allocate") ? (
@@ -615,6 +611,10 @@ export default function TransactionsTable({
                                   ) : (
                                     <InlineEditableCell value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="mt-0.5 block text-[11px] text-slate-500" showOptionIcons />
                                   )}
+                                </div>
+                                <div className="min-w-0 self-start">
+                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
+                                  {transaction.description ? <div className="mt-1 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
                                 </div>
                                 <div className={`flex flex-col items-end gap-1 text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
                                   {preset.showAllocationStatus && status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
