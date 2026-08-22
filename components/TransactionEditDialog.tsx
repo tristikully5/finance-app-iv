@@ -42,7 +42,7 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     formData.set("description", description);
-    formData.set("tags", tags.join(","));
+    formData.set("tags", JSON.stringify(tags));
     startTransition(async () => {
       await updateTransaction(formData);
       onClose();

@@ -14,10 +14,17 @@ function parseAmount(value: FormDataEntryValue | null) {
 
 function parseTags(value: FormDataEntryValue | null) {
   if (typeof value !== "string") return [];
-  return value
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((tag): tag is string => typeof tag === "string").map((tag) => tag.trim()).filter(Boolean);
+    }
+  } catch {
+    // Accept legacy comma-separated values.
+  }
+
+  return value.split(",").map((tag) => tag.trim()).filter(Boolean);
 }
 
 function parseName(value: FormDataEntryValue | null) {

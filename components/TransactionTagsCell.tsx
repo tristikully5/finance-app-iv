@@ -27,7 +27,7 @@ export default function TransactionTagsCell({ tags, suggestions = [], onSave }: 
   }
 
   return (
-    <button type="button" onClick={() => { setDraftTags(tags); setEditing(true); }} className="mt-1 flex min-h-5 w-full flex-wrap gap-1 rounded px-1 py-0.5 text-left hover:bg-slate-50" aria-label={tags.length > 0 ? "Edit transaction tags" : "Add transaction tag"}>
+    <button type="button" onClick={() => { setDraftTags(tags); setEditing(true); }} className="flex min-h-5 w-full flex-wrap gap-1 rounded px-0 py-0.5 text-left hover:bg-slate-50" aria-label={tags.length > 0 ? "Edit transaction tags" : "Add transaction tag"}>
       {tags.length > 0 ? tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">{tag}</span>) : <span className="text-[10px] text-slate-400">+ Add tag</span>}
     </button>
   );

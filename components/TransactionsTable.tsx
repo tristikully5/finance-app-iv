@@ -459,7 +459,7 @@ export default function TransactionsTable({
     formData.append("date", overrides.date ?? transaction.date.slice(0, 10));
     formData.append("name", overrides.name ?? transaction.name);
     formData.append("description", overrides.description ?? transaction.description ?? "");
-    formData.append("tags", (overrides.tags ?? transaction.tags ?? []).join(","));
+    formData.append("tags", JSON.stringify(overrides.tags ?? transaction.tags ?? []));
     formData.append("amount", String(overrides.amount ?? transaction.amount));
     formData.append("currency", overrides.currency ?? transaction.currency);
     formData.append("type", overrides.type ?? transaction.type);
@@ -539,7 +539,7 @@ export default function TransactionsTable({
               <>
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                   <div className="overflow-x-auto">
-                    <div className="min-w-[640px]">
+                    <div className="min-w-[760px]">
                       {orderedDays.length === 0 ? <div className="p-12 text-center text-sm text-slate-500">No transactions found for {monthLabel}.</div> : orderedDays.map((day) => {
                         const dayTransactions = groupedTransactions[day];
                         const cashTransactions = dayTransactions.filter((item) => item.type === "Income" || item.type === "Expense");
@@ -589,9 +589,6 @@ export default function TransactionsTable({
                                 </div>
                                 <div className="min-w-0">
                                   <InlineEditableCell value={transaction.name} onSave={(value) => makeUpdateForm(transaction, { name: value })} className={`block truncate font-semibold text-slate-900 ${isReleasedAllocation ? "line-through" : ""}`} />
-                                  {transaction.description ? <div className="mt-0.5 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
-                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
-
                                   {(transaction.type === "Transfer" || transaction.type === "Allocate") ? (
                                     <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
                                       <InlineEditableCell noFullWidth value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="min-w-0 truncate text-[11px] text-slate-500" showOptionIcons />
@@ -614,6 +611,10 @@ export default function TransactionsTable({
                                   ) : (
                                     <InlineEditableCell value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="mt-0.5 block text-[11px] text-slate-500" showOptionIcons />
                                   )}
+                                </div>
+                                <div className="min-w-0 self-start">
+                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
+                                  {transaction.description ? <div className="mt-1 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
                                 </div>
                                 <div className={`flex flex-col items-end gap-1 text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
                                   {preset.showAllocationStatus && status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
