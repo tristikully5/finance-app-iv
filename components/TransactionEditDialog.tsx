@@ -17,6 +17,7 @@ type TransactionEditDialogProps = {
     toAccountId: number | null;
     goalId: number | null;
     monthCategoryId: number;
+    category?: { id: number; name: string; type: string; icon?: string | null };
     description?: string;
     tags?: string[];
   };

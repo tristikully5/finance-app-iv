@@ -31,6 +31,7 @@ type TransactionDialogFieldsProps = {
     toAccountId: number | null;
     goalId: number | null;
     monthCategoryId: number;
+    category?: CategoryOption;
     name: string;
     description?: string;
     tags?: string[];
@@ -80,6 +81,10 @@ export default function TransactionDialogFields({
   onTagsChange,
 }: TransactionDialogFieldsProps) {
   const filteredCategories = categories.filter((category) => category.type === selectedType);
+  const transactionCategory = transaction?.category ?? categories.find((category) => category.id === transaction?.monthCategoryId);
+  const categoryOptions = transactionCategory && transactionCategory.type === selectedType && !filteredCategories.some((category) => category.id === transactionCategory.id)
+    ? [transactionCategory, ...filteredCategories]
+    : filteredCategories;
   const destinationAccounts = accounts.filter((account) => String(account.id) !== selectedAccountId);
   const sourceFieldName = mode === "add" ? "fromAccountId" : "accountId";
   const inputClassName = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
@@ -177,7 +182,7 @@ export default function TransactionDialogFields({
 
       {preset.showCategory && selectedType !== "Transfer" && selectedType !== "Allocate" ? (
         <FieldRow label="Category">
-          <IconSelect name="monthCategoryId" defaultValue={transaction?.monthCategoryId ? String(transaction.monthCategoryId) : (filteredCategories[0]?.id ? String(filteredCategories[0].id) : "")} options={filteredCategories.length === 0 ? [{ value: "", label: `No ${selectedType.toLowerCase()} categories` }] : filteredCategories.map((category) => ({ value: String(category.id), label: category.name, icon: category.icon }))} required={filteredCategories.length > 0} />
+          <IconSelect name="monthCategoryId" defaultValue={transaction?.monthCategoryId ? String(transaction.monthCategoryId) : (categoryOptions[0]?.id ? String(categoryOptions[0].id) : "")} options={categoryOptions.length === 0 ? [{ value: "", label: `No ${selectedType.toLowerCase()} categories` }] : categoryOptions.map((category) => ({ value: String(category.id), label: category.name, icon: category.icon }))} required={categoryOptions.length > 0} />
         </FieldRow>
       ) : null}
 
