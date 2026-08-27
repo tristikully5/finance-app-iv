@@ -99,27 +99,38 @@ type DonutEntry = {
   percentage: number;
   strokeClass: string;
   dotClass: string;
+  icon: string;
 };
 
-function SummaryDonut({ entries, label }: { entries: DonutEntry[]; label: string }) {
+function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; label: string; currency: string }) {
   const total = entries.reduce((sum, entry) => sum + entry.value, 0);
 
   const labelPositions = entries.map((entry, index) => {
-    const previousTotal = entries.slice(0, index).reduce((sum, previousEntry) => sum + previousEntry.value, 0);
-    const segment = total === 0 ? 0 : ((entry.value / total) * 100);
+    const segment = total === 0 ? 0 : (entry.value / total) * 100;
     const startAngle = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0) * 3.6 - 90;
     const midAngle = startAngle + segment * 3.6 / 2;
     const radians = (midAngle * Math.PI) / 180;
-    const radius = 46;
-    const x = 50 + (Math.cos(radians) * radius);
-    const y = 50 + (Math.sin(radians) * radius);
-    const anchor = x > 50 ? "start" : "end";
-    const labelYOffset = entry.name.length > 12 ? 5 : 0;
+    const lineStartRadius = 37;
+    const elbowRadius = 48;
+    const lineStartX = 50 + Math.cos(radians) * lineStartRadius;
+    const lineStartY = 50 + Math.sin(radians) * lineStartRadius;
+    const elbowX = 50 + Math.cos(radians) * elbowRadius;
+    const elbowY = 50 + Math.sin(radians) * elbowRadius;
+    const anchor = elbowX > 50 ? "start" : "end";
+    const lineEndX = anchor === "start" ? 78 : 22;
+    const lineEndY = Math.max(8, Math.min(92, elbowY));
+    const labelYOffset = entry.name.length > 12 ? 4 : 0;
 
     return {
       ...entry,
-      x,
-      y: y + labelYOffset,
+      labelX: anchor === "start" ? 80 : 20,
+      labelY: lineEndY + labelYOffset,
+      lineStartX,
+      lineStartY,
+      elbowX,
+      elbowY,
+      lineEndX,
+      lineEndY,
       anchor,
       percent: total === 0 ? 0 : Math.round((entry.value / total) * 100),
       key: `${entry.name}-${index}`,
@@ -148,7 +159,13 @@ function SummaryDonut({ entries, label }: { entries: DonutEntry[]; label: string
 
   return (
     <div className="relative h-48 w-48">
-      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-label={`${label} category breakdown`} role="img">
+      <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
+        {labelPositions.map((item) => (
+          <polyline key={`${item.key}-line`} points={`${item.lineStartX},${item.lineStartY} ${item.elbowX},${item.elbowY} ${item.lineEndX},${item.lineEndY}`} fill="none" stroke="#94a3b8" strokeWidth="0.45" strokeLinecap="round" strokeLinejoin="round" />
+        ))}
+      </svg>
+
+      <svg viewBox="0 0 100 100" className="relative h-full w-full -rotate-90" aria-label={`${label} category breakdown`} role="img">
         <circle cx="50" cy="50" r="31" fill="none" strokeWidth="13" className="stroke-slate-100" />
         {entries.map((entry, index) => {
           const segment = total === 0 ? 0 : (entry.value / total) * 100;
@@ -177,8 +194,8 @@ function SummaryDonut({ entries, label }: { entries: DonutEntry[]; label: string
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-2xl font-bold leading-none text-slate-800">{total > 0 ? `${Math.round((total / total) * 100)}%` : "0%"}</span>
-        <span className="mt-1 text-[10px] text-slate-500">{label}</span>
+        <span className="text-2xl font-bold leading-none text-slate-800">{formatCurrencyNumber(total, currency)}</span>
+        <span className="mt-1 text-[10px] text-slate-500">Total {label}</span>
       </div>
 
       {labelPositions.map((item) => (
@@ -186,14 +203,15 @@ function SummaryDonut({ entries, label }: { entries: DonutEntry[]; label: string
           key={item.key}
           className="pointer-events-none absolute flex items-center"
           style={{
-            left: `${item.x}%`,
-            top: `${item.y}%`,
-            transform: `translate(${item.anchor === "start" ? "8px" : "-100%"}, -50%)`,
+            left: `${item.labelX}%`,
+            top: `${item.labelY}%`,
+            transform: `translate(${item.anchor === "start" ? "2px" : "-100%"}, -50%)`,
             maxWidth: "34%",
           }}
         >
-          <div className="text-[10px] font-medium text-slate-600 leading-tight" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
-            <div className="whitespace-nowrap">{item.name}</div>
+          <div className="text-[10px] leading-tight text-slate-600" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
+            <div className="whitespace-nowrap font-semibold">{item.name}</div>
+            <div className="mt-0.5 text-[9px] text-slate-500">{item.percent}%</div>
           </div>
         </div>
       ))}
@@ -413,6 +431,7 @@ export default function TransactionsTable({
         const current = grouped.get(key) ?? {
           name: transaction.category.name,
           value: 0,
+          icon: transaction.category.icon || getTypeFallbackIcon(type),
           ...palette[index % palette.length],
         };
 
@@ -722,13 +741,15 @@ export default function TransactionsTable({
               <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[9px] font-semibold text-slate-400" aria-label="Income breakdown information">i</span>
             </div>
             <div className="mt-3 flex justify-center">
-              <SummaryDonut entries={categoryBreakdowns.income} label="Income" />
+              <SummaryDonut entries={categoryBreakdowns.income} label="Income" currency={summaryCurrency} />
             </div>
             <div className="mt-4 space-y-2">
               {categoryBreakdowns.income.length ? categoryBreakdowns.income.map((entry) => (
                 <div key={entry.name} className="flex items-center justify-between gap-2 text-[11px] text-slate-600">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${entry.dotClass}`} />
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+                      <IconDisplay icon={entry.icon} className="h-4 w-4 object-contain" />
+                    </span>
                     <span className="truncate">{entry.name}</span>
                   </div>
                   <span className="flex shrink-0 items-center gap-3 font-medium text-slate-700">
@@ -749,13 +770,15 @@ export default function TransactionsTable({
               <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[9px] font-semibold text-slate-400" aria-label="Expense breakdown information">i</span>
             </div>
             <div className="mt-3 flex justify-center">
-              <SummaryDonut entries={categoryBreakdowns.expense} label="Expenses" />
+              <SummaryDonut entries={categoryBreakdowns.expense} label="Expenses" currency={summaryCurrency} />
             </div>
             <div className="mt-4 space-y-2">
               {categoryBreakdowns.expense.length ? categoryBreakdowns.expense.map((entry) => (
                 <div key={entry.name} className="flex items-center justify-between gap-2 text-[11px] text-slate-600">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${entry.dotClass}`} />
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+                      <IconDisplay icon={entry.icon} className="h-4 w-4 object-contain" />
+                    </span>
                     <span className="truncate">{entry.name}</span>
                   </div>
                   <span className="flex shrink-0 items-center gap-3 font-medium text-slate-700">
