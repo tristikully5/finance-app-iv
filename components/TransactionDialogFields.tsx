@@ -128,7 +128,7 @@ export default function TransactionDialogFields({
             mode="date"
             dateValue={dateValue}
             onDateChange={onDateChange}
-            className={`${inputClassName} flex items-center justify-between text-left`}
+            className={`${inputClassName} flex items-center justify-start gap-2 text-left`}
           />
         </FieldRow>
       ) : null}

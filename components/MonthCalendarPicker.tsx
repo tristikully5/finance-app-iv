@@ -284,7 +284,7 @@ export default function MonthCalendarPicker(props: MonthCalendarPickerProps) {
       <button type="button" onClick={openPicker} aria-expanded={isOpen} aria-haspopup="dialog" className={triggerClassName}>
         <CalendarIcon />
         {triggerLabel}
-        <span aria-hidden="true" className="text-slate-400">⌄</span>
+        <span aria-hidden="true" className={`${isDateMode ? "ml-auto" : ""} text-slate-400`}>⌄</span>
       </button>
       {typeof document !== "undefined" && popover ? createPortal(popover, document.body) : null}
     </div>
