@@ -20,19 +20,48 @@ const MONTH_NAMES = [
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
-type MonthCalendarPickerProps = {
-  monthKey: string;
-  monthLabel: string;
-  todayMonthKey: string;
-};
+type MonthCalendarPickerProps =
+  | {
+      mode?: "month";
+      monthKey: string;
+      monthLabel: string;
+      todayMonthKey: string;
+      className?: string;
+    }
+  | {
+      mode: "date";
+      dateValue: string;
+      onDateChange: (value: string) => void;
+      name?: string;
+      className?: string;
+    };
 
 function parseMonthKey(value: string) {
   const [year, month] = value.split("-").map(Number);
   return { year, month };
 }
 
+function parseDateKey(value?: string) {
+  const [year, month, day] = (value ?? "").split("-").map(Number);
+  const today = new Date();
+  return {
+    year: year || today.getFullYear(),
+    month: month || today.getMonth() + 1,
+    day: day || today.getDate(),
+  };
+}
+
+function formatDateKey(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function buildMonthKey(year: number, month: number) {
   return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function formatDateLabel(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
 function ChevronIcon({ direction }: { direction: "left" | "right" }) {
@@ -52,12 +81,13 @@ function CalendarIcon() {
   );
 }
 
-export default function MonthCalendarPicker({ monthKey, monthLabel, todayMonthKey }: MonthCalendarPickerProps) {
+export default function MonthCalendarPicker(props: MonthCalendarPickerProps) {
   const router = useRouter();
   const pickerRef = useRef<HTMLDivElement>(null);
-  const selectedMonth = parseMonthKey(monthKey);
+  const isDateMode = props.mode === "date";
+  const initialMonth = isDateMode ? parseDateKey(props.dateValue) : parseMonthKey(props.monthKey);
   const [isOpen, setIsOpen] = useState(false);
-  const [displayedMonth, setDisplayedMonth] = useState(selectedMonth);
+  const [displayedMonth, setDisplayedMonth] = useState({ year: initialMonth.year, month: initialMonth.month });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -80,7 +110,8 @@ export default function MonthCalendarPicker({ monthKey, monthLabel, todayMonthKe
   }, [isOpen]);
 
   const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const selectedDateKey = isDateMode ? props.dateValue || todayKey : todayKey;
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(displayedMonth.year, displayedMonth.month - 1, 1);
@@ -90,25 +121,40 @@ export default function MonthCalendarPicker({ monthKey, monthLabel, todayMonthKe
 
     return Array.from({ length: totalCells }, (_, index) => {
       const date = new Date(displayedMonth.year, displayedMonth.month - 1, index - leadingDays + 1);
-      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const dateKey = formatDateKey(date.getFullYear(), date.getMonth() + 1, date.getDate());
       return {
         dateKey,
         day: date.getDate(),
         year: date.getFullYear(),
         month: date.getMonth() + 1,
         inMonth: date.getMonth() === displayedMonth.month - 1,
-        isSelected: dateKey === todayKey,
+        isSelected: dateKey === selectedDateKey,
       };
     });
-  }, [displayedMonth, todayKey]);
+  }, [displayedMonth, selectedDateKey]);
 
   const yearOptions = useMemo(() => {
     return Array.from({ length: 21 }, (_, index) => displayedMonth.year - 10 + index);
   }, [displayedMonth.year]);
 
   const goToMonth = (year: number, month: number) => {
+    if (isDateMode) {
+      setDisplayedMonth({ year, month });
+      return;
+    }
+
     router.push(`/transactions?month=${buildMonthKey(year, month)}`);
     setIsOpen(false);
+  };
+
+  const selectDate = (year: number, month: number, day: number) => {
+    if (isDateMode) {
+      props.onDateChange(formatDateKey(year, month, day));
+      setIsOpen(false);
+      return;
+    }
+
+    goToMonth(year, month);
   };
 
   const moveMonth = (offset: number) => {
@@ -116,27 +162,52 @@ export default function MonthCalendarPicker({ monthKey, monthLabel, todayMonthKe
     setDisplayedMonth({ year: next.getFullYear(), month: next.getMonth() + 1 });
   };
 
-  const clearMonth = () => {
-    router.push("/transactions");
+  const clear = () => {
+    if (isDateMode) {
+      props.onDateChange("");
+    } else {
+      router.push("/transactions");
+    }
     setIsOpen(false);
   };
 
+  const chooseToday = () => {
+    if (isDateMode) {
+      props.onDateChange(todayKey);
+      setIsOpen(false);
+      return;
+    }
+
+    const todayMonth = parseMonthKey(props.todayMonthKey);
+    goToMonth(todayMonth.year, todayMonth.month);
+  };
+
+  const triggerLabel = isDateMode ? (props.dateValue ? formatDateLabel(props.dateValue) : "Select date") : props.monthLabel;
+  const triggerClassName = props.className ?? "inline-flex h-9 min-w-32 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition hover:bg-slate-50";
+
   return (
     <div ref={pickerRef} className="relative">
+      {isDateMode ? <input type="text" name={props.name ?? "date"} value={props.dateValue || ""} required readOnly aria-label="Selected date" className="sr-only" /> : null}
       <button
         type="button"
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => {
+          if (!isOpen) {
+            const nextDate = isDateMode ? parseDateKey(props.dateValue) : displayedMonth;
+            setDisplayedMonth({ year: nextDate.year, month: nextDate.month });
+          }
+          setIsOpen((current) => !current);
+        }}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="inline-flex h-9 min-w-32 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-800 transition hover:bg-slate-50"
+        className={triggerClassName}
       >
         <CalendarIcon />
-        {monthLabel}
+        {triggerLabel}
         <span aria-hidden="true" className="text-slate-400">⌄</span>
       </button>
 
       {isOpen ? (
-        <div role="dialog" aria-label="Choose transaction month" className="absolute left-0 top-[calc(100%+0.5rem)] z-30 w-[min(31rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <div role="dialog" aria-label={isDateMode ? "Choose transaction date" : "Choose transaction month"} className={`absolute left-0 top-[calc(100%+0.5rem)] z-30 w-[min(31rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ${isDateMode ? "max-w-full" : ""}`}>
           <div className="flex items-center gap-2 px-4 pb-3 pt-4">
             <label className="relative w-36 shrink-0">
               <span className="sr-only">Month</span>
@@ -179,7 +250,7 @@ export default function MonthCalendarPicker({ monthKey, monthLabel, todayMonthKe
                 <button
                   key={dateKey}
                   type="button"
-                  onClick={() => goToMonth(year, month)}
+                  onClick={() => selectDate(year, month, day)}
                   className={`mx-auto flex h-9 w-9 items-center justify-center rounded-xl text-sm transition ${!inMonth ? "text-slate-300" : isSelected ? "bg-violet-700 font-semibold text-white shadow-sm" : "text-slate-700 hover:bg-violet-50 hover:text-violet-700"}`}
                   aria-label={`${MONTH_NAMES[month - 1]} ${day}, ${year}`}
                 >
@@ -190,8 +261,8 @@ export default function MonthCalendarPicker({ monthKey, monthLabel, todayMonthKe
           </div>
 
           <div className="grid grid-cols-2 border-t border-slate-200">
-            <button type="button" onClick={clearMonth} className="border-r border-slate-200 px-4 py-4 text-sm font-semibold text-violet-700 transition hover:bg-violet-50">Clear</button>
-            <button type="button" onClick={() => { const today = parseMonthKey(todayMonthKey); goToMonth(today.year, today.month); }} className="px-4 py-4 text-sm font-semibold text-violet-700 transition hover:bg-violet-50">Today</button>
+            <button type="button" onClick={clear} className="border-r border-slate-200 px-4 py-4 text-sm font-semibold text-violet-700 transition hover:bg-violet-50">Clear</button>
+            <button type="button" onClick={chooseToday} className="px-4 py-4 text-sm font-semibold text-violet-700 transition hover:bg-violet-50">Today</button>
           </div>
         </div>
       ) : null}

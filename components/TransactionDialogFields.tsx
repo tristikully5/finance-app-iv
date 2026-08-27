@@ -1,5 +1,6 @@
 import AmountInput from "@/components/AmountInput";
 import IconSelect from "@/components/IconSelect";
+import MonthCalendarPicker from "@/components/MonthCalendarPicker";
 import TagInput from "@/components/TagInput";
 import type { TransactionDialogPreset } from "@/components/transaction-dialog-presets";
 
@@ -23,6 +24,8 @@ type TransactionDialogFieldsProps = {
   onToAccountChange: (value: string) => void;
   selectedGoalId: string;
   onGoalChange: (value: string) => void;
+  dateValue: string;
+  onDateChange: (value: string) => void;
   transaction?: {
     date: string;
     amount: number;
@@ -73,6 +76,8 @@ export default function TransactionDialogFields({
   onToAccountChange,
   selectedGoalId,
   onGoalChange,
+  dateValue,
+  onDateChange,
   transaction,
   description,
   onDescriptionChange,
@@ -119,7 +124,12 @@ export default function TransactionDialogFields({
 
       {preset.showDate ? (
         <FieldRow label="Date">
-          <input name="date" type="date" defaultValue={transaction?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10)} required className={inputClassName} />
+          <MonthCalendarPicker
+            mode="date"
+            dateValue={dateValue}
+            onDateChange={onDateChange}
+            className={`${inputClassName} flex items-center justify-between text-left`}
+          />
         </FieldRow>
       ) : null}
 

@@ -35,6 +35,7 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
   const [selectedAccountId, setSelectedAccountId] = useState(String(transaction.accountId));
   const [selectedToAccountId, setSelectedToAccountId] = useState(transaction.toAccountId ? String(transaction.toAccountId) : "");
   const [selectedGoalId, setSelectedGoalId] = useState(transaction.goalId ? String(transaction.goalId) : "");
+  const [dateValue, setDateValue] = useState(transaction.date.slice(0, 10));
   const [description, setDescription] = useState(transaction.description ?? "");
   const [tags, setTags] = useState<string[]>(transaction.tags ?? []);
   const router = useRouter();
@@ -90,6 +91,8 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
             setSelectedGoalId(value);
             setSelectedToAccountId("");
           }}
+          dateValue={dateValue}
+          onDateChange={setDateValue}
           description={description}
           onDescriptionChange={setDescription}
           tags={tags}

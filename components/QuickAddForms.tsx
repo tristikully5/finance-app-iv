@@ -242,6 +242,7 @@ export function QuickAddTransactionForm({
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedToAccountId, setSelectedToAccountId] = useState("");
   const [selectedGoalId, setSelectedGoalId] = useState("");
+  const [dateValue, setDateValue] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
 
@@ -258,6 +259,7 @@ export function QuickAddTransactionForm({
       setSelectedAccountId("");
       setSelectedToAccountId("");
       setSelectedGoalId("");
+      setDateValue(new Date().toISOString().slice(0, 10));
       setDescription("");
       setTags([]);
     });
@@ -289,6 +291,8 @@ export function QuickAddTransactionForm({
           setSelectedGoalId(value);
           setSelectedToAccountId("");
         }}
+        dateValue={dateValue}
+        onDateChange={setDateValue}
         description={description}
         onDescriptionChange={setDescription}
         tags={tags}
