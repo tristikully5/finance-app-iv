@@ -130,6 +130,7 @@ export default function MonthCalendarPicker(props: MonthCalendarPickerProps) {
   const today = new Date();
   const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
   const selectedDateKey = isDateMode ? props.dateValue || todayKey : "";
+  const selectedMonth = !isDateMode ? parseMonthKey(props.monthKey) : null;
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(displayedMonth.year, displayedMonth.month - 1, 1);
@@ -175,6 +176,10 @@ export default function MonthCalendarPicker(props: MonthCalendarPickerProps) {
     setDisplayedMonth({ year: next.getFullYear(), month: next.getMonth() + 1 });
   };
 
+  const moveYear = (offset: number) => {
+    setDisplayedMonth((current) => ({ ...current, year: current.year + offset }));
+  };
+
   const clear = () => {
     if (isDateMode) {
       props.onDateChange("");
@@ -215,61 +220,88 @@ export default function MonthCalendarPicker(props: MonthCalendarPickerProps) {
       className="fixed z-[70] w-[min(20.75rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
       style={{ top: popoverPosition.top, left: popoverPosition.left }}
     >
-      <div className="flex items-center gap-1.5 px-2.5 pb-2 pt-2.5">
-        <label className="relative w-24 shrink-0">
-          <span className="sr-only">Month</span>
-          <select
-            aria-label="Month"
-            value={displayedMonth.month}
-            onChange={(event) => setDisplayedMonth((current) => ({ ...current, month: Number(event.target.value) }))}
-            className="h-7 w-full appearance-none rounded-lg border border-slate-200 bg-white px-2 pr-6 text-[11px] font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          >
-            {MONTH_NAMES.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
-          </select>
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">⌄</span>
-        </label>
-        <label className="relative w-[4.5rem] shrink-0">
-          <span className="sr-only">Year</span>
-          <select
-            aria-label="Year"
-            value={displayedMonth.year}
-            onChange={(event) => setDisplayedMonth((current) => ({ ...current, year: Number(event.target.value) }))}
-            className="h-7 w-full appearance-none rounded-lg border border-slate-200 bg-white px-2 pr-5 text-[11px] font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          >
-            {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
-          </select>
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">⌄</span>
-        </label>
-        <button type="button" onClick={() => moveMonth(-1)} aria-label="Previous month" className="ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-50">
-          <ChevronIcon direction="left" />
-        </button>
-        <button type="button" onClick={() => moveMonth(1)} aria-label="Next month" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-50">
-          <ChevronIcon direction="right" />
-        </button>
-      </div>
-
-      <div className="px-2.5 pb-2.5">
-        <div className="grid grid-cols-7 text-center text-[10px] font-medium text-slate-500">
-          {WEEKDAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-y-0.5 text-center">
-          {calendarDays.map(({ dateKey, day, year, month, inMonth, isSelected }) => isDateMode ? (
-            <button
-              key={dateKey}
-              type="button"
-              onClick={() => selectDate(year, month, day)}
-              className={`mx-auto flex h-6 w-6 items-center justify-center rounded-lg text-[11px] transition ${!inMonth ? "text-slate-300" : isSelected ? "bg-violet-700 font-semibold text-white shadow-sm" : "text-slate-700 hover:bg-violet-50 hover:text-violet-700"}`}
-              aria-label={`${MONTH_NAMES[month - 1]} ${day}, ${year}`}
+      {isDateMode ? (
+        <div className="flex items-center gap-1.5 px-2.5 pb-2 pt-2.5">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Month</span>
+            <select
+              aria-label="Month"
+              value={displayedMonth.month}
+              onChange={(event) => setDisplayedMonth((current) => ({ ...current, month: Number(event.target.value) }))}
+              className="h-7 w-full appearance-none rounded-lg border border-slate-200 bg-white px-2 pr-6 text-[11px] font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             >
-              {day}
-            </button>
-          ) : (
-            <div key={dateKey} aria-hidden="true" className={`mx-auto flex h-6 w-6 items-center justify-center text-[11px] ${inMonth ? "text-slate-700" : "text-slate-300"}`}>
-              {day}
-            </div>
-          ))}
+              {MONTH_NAMES.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
+            </select>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">⌄</span>
+          </label>
+          <label className="relative w-[4.5rem] shrink-0">
+            <span className="sr-only">Year</span>
+            <select
+              aria-label="Year"
+              value={displayedMonth.year}
+              onChange={(event) => setDisplayedMonth((current) => ({ ...current, year: Number(event.target.value) }))}
+              className="h-7 w-full appearance-none rounded-lg border border-slate-200 bg-white px-2 pr-5 text-[11px] font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            >
+              {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">⌄</span>
+          </label>
+          <button type="button" onClick={() => moveMonth(-1)} aria-label="Previous month" className="ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-50">
+            <ChevronIcon direction="left" />
+          </button>
+          <button type="button" onClick={() => moveMonth(1)} aria-label="Next month" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-50">
+            <ChevronIcon direction="right" />
+          </button>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between border-b border-slate-200 px-2.5 py-2">
+          <button type="button" onClick={() => moveYear(-1)} aria-label="Previous year" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100">
+            <ChevronIcon direction="left" />
+          </button>
+          <span className="text-xs font-semibold text-slate-800">{displayedMonth.year}</span>
+          <button type="button" onClick={() => moveYear(1)} aria-label="Next year" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100">
+            <ChevronIcon direction="right" />
+          </button>
+        </div>
+      )}
+
+      {isDateMode ? (
+        <div className="px-2.5 pb-2.5">
+          <div className="grid grid-cols-7 text-center text-[10px] font-medium text-slate-500">
+            {WEEKDAYS.map((day) => <div key={day} className="py-1.5">{day}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-y-0.5 text-center">
+            {calendarDays.map(({ dateKey, day, year, month, inMonth, isSelected }) => (
+              <button
+                key={dateKey}
+                type="button"
+                onClick={() => selectDate(year, month, day)}
+                className={`mx-auto flex h-6 w-6 items-center justify-center rounded-lg text-[11px] transition ${!inMonth ? "text-slate-300" : isSelected ? "bg-violet-700 font-semibold text-white shadow-sm" : "text-slate-700 hover:bg-violet-50 hover:text-violet-700"}`}
+                aria-label={`${MONTH_NAMES[month - 1]} ${day}, ${year}`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 border-t border-slate-200">
+          {MONTH_NAMES.map((name, index) => {
+            const month = index + 1;
+            const isSelected = selectedMonth?.year === displayedMonth.year && selectedMonth.month === month;
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => goToMonth(displayedMonth.year, month)}
+                className={`border-b border-r border-slate-200 px-2 py-2 text-[11px] transition ${index % 3 === 2 ? "border-r-0" : ""} ${isSelected ? "bg-violet-50 font-semibold text-violet-700" : "text-slate-700 hover:bg-violet-50 hover:text-violet-700"}`}
+              >
+                {name.slice(0, 3)}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 border-t border-slate-200">
         <button type="button" onClick={clear} className="border-r border-slate-200 px-3 py-2.5 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-50">Clear</button>
