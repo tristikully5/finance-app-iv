@@ -313,7 +313,7 @@ export default function MonthCalendarPicker(props: MonthCalendarPickerProps) {
   return (
     <div ref={pickerRef} className="relative">
       {isDateMode ? <input type="text" name={props.name ?? "date"} value={props.dateValue || ""} required readOnly aria-label="Selected date" className="sr-only" /> : null}
-      <button type="button" onClick={openPicker} aria-expanded={isOpen} aria-haspopup="dialog" className={triggerClassName}>
+      <button type="button" data-transaction-date-trigger={isDateMode ? "true" : undefined} onClick={openPicker} aria-expanded={isOpen} aria-haspopup="dialog" className={triggerClassName}>
         <CalendarIcon />
         {triggerLabel}
         <span aria-hidden="true" className={`${isDateMode ? "ml-auto" : ""} text-slate-400`}>⌄</span>

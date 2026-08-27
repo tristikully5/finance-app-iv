@@ -111,7 +111,7 @@ export default function TransactionDialogFields({
                     : "bg-violet-50 text-violet-700";
 
               return (
-                <button key={option.value} type="button" onClick={() => onTypeChange(option.value)} className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-2 py-2 text-[11px] font-semibold transition ${isSelected ? selectedClass : "text-slate-500 hover:bg-slate-50"}`}>
+                <button key={option.value} type="button" data-transaction-type={option.value} data-selected={isSelected ? "true" : "false"} onClick={() => onTypeChange(option.value)} className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-2 py-2 text-[11px] font-semibold transition ${isSelected ? selectedClass : "text-slate-500 hover:bg-slate-50"}`}>
                   <span aria-hidden="true">{option.icon}</span>
                   <span className="truncate">{option.label}</span>
                 </button>

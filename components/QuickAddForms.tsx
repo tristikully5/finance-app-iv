@@ -300,7 +300,7 @@ export function QuickAddTransactionForm({
         onTagsChange={setTags}
       />
       <div className="mt-5 flex justify-end pt-1">
-        <button disabled={isPending} className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
+        <button type="submit" data-transaction-submit disabled={isPending} className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
           {isPending ? "Saving..." : "Save"}
         </button>
       </div>

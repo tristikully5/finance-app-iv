@@ -103,7 +103,7 @@ export default function TransactionEditDialog({ transaction, accounts, categorie
           {preset.showDelete ? (
             <button type="button" onClick={handleDelete} disabled={isPending} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60">Delete</button>
           ) : <span />}
-          <button disabled={isPending} className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save changes"}</button>
+          <button type="submit" data-transaction-submit disabled={isPending} className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save changes"}</button>
         </div>
       </form>
     </StandardDialog>
