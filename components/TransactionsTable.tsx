@@ -6,6 +6,7 @@ import Link from "next/link";
 import TransactionEditDialog from "@/components/TransactionEditDialog";
 import IconDisplay from "@/components/IconDisplay";
 import TransactionTagsCell from "@/components/TransactionTagsCell";
+import MonthCalendarPicker from "@/components/MonthCalendarPicker";
 import { updateTransaction } from "@/app/transactions/actions";
 import {
   getCategoryTypeDefaultColorValue,
@@ -483,11 +484,7 @@ export default function TransactionsTable({
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <Link href={`/transactions?month=${previousMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Previous month">‹</Link>
-                <div className="flex h-9 min-w-32 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-800">
-                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
-                  {monthLabel}
-                  <span aria-hidden="true" className="text-slate-400">⌄</span>
-                </div>
+                <MonthCalendarPicker key={monthKey} monthKey={monthKey} monthLabel={monthLabel} todayMonthKey={todayMonthKey} />
                 <Link href={`/transactions?month=${nextMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Next month">›</Link>
                 <Link href={`/transactions?month=${todayMonthKey}`} className="ml-1 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Today</Link>
               </div>
