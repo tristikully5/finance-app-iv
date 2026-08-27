@@ -79,26 +79,15 @@ function formatCurrencyLabel(value: number, currency: string) {
 }
 
 const DONUT_PALETTES = {
-  Income: [
-    { strokeClass: "stroke-emerald-600", dotClass: "bg-emerald-600" },
-    { strokeClass: "stroke-emerald-500", dotClass: "bg-emerald-500" },
-    { strokeClass: "stroke-emerald-400", dotClass: "bg-emerald-400" },
-    { strokeClass: "stroke-teal-500", dotClass: "bg-teal-500" },
-  ],
-  Expense: [
-    { strokeClass: "stroke-rose-500", dotClass: "bg-rose-500" },
-    { strokeClass: "stroke-red-500", dotClass: "bg-red-500" },
-    { strokeClass: "stroke-orange-500", dotClass: "bg-orange-500" },
-    { strokeClass: "stroke-orange-400", dotClass: "bg-orange-400" },
-  ],
+  Income: ["#16a34a", "#22c55e", "#10b981", "#14b8a6", "#2dd4bf", "#34d399", "#4ade80"],
+  Expense: ["#e11d48", "#f43f5e", "#f97316", "#fb923c", "#f59e0b", "#eab308", "#84cc16"],
 };
 
 type DonutEntry = {
   name: string;
   value: number;
   percentage: number;
-  strokeClass: string;
-  dotClass: string;
+  color: string;
   icon: string;
 };
 
@@ -137,26 +126,6 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
     };
   });
 
-  const segmentPercentLabels = entries.map((entry, index) => {
-    const segment = total === 0 ? 0 : (entry.value / total) * 100;
-    const startAngle = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0) * 3.6 - 90;
-    const midAngle = startAngle + segment * 3.6 / 2;
-    const radians = (midAngle * Math.PI) / 180;
-    const labelRadius = 37;
-    const x = 50 + (Math.cos(radians) * labelRadius);
-    const y = 50 + (Math.sin(radians) * labelRadius);
-    const percent = total === 0 ? 0 : Math.round((entry.value / total) * 100);
-
-    return {
-      ...entry,
-      x,
-      y,
-      percent,
-      show: percent >= 8,
-      key: `${entry.name}-percent-${index}`,
-    };
-  });
-
   return (
     <div className="relative h-48 w-48">
       <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
@@ -171,31 +140,13 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
           const segment = total === 0 ? 0 : (entry.value / total) * 100;
           const segmentLength = entries.length > 1 ? Math.max(segment - 0.8, 0) : segment;
           const offset = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0);
-          return <circle key={entry.name} cx="50" cy="50" r="31" fill="none" pathLength="100" strokeWidth="13" strokeLinecap="butt" strokeDasharray={`${segmentLength} ${100 - segmentLength}`} strokeDashoffset={-offset} className={entry.strokeClass} />;
+          return <circle key={entry.name} cx="50" cy="50" r="31" fill="none" pathLength="100" strokeWidth="13" strokeLinecap="butt" strokeDasharray={`${segmentLength} ${100 - segmentLength}`} strokeDashoffset={-offset} stroke={entry.color} />;
         })}
-        {segmentPercentLabels.filter((item) => item.show).map((item) => (
-          <text
-            key={item.key}
-            x={item.x}
-            y={item.y}
-            fill="white"
-            stroke="rgba(255,255,255,0.18)"
-            strokeWidth="0.6"
-            paintOrder="stroke"
-            fontSize="4.2"
-            fontWeight="700"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className="pointer-events-none"
-          >
-            {`${item.percent}%`}
-          </text>
-        ))}
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-2xl font-bold leading-none text-slate-800">{formatCurrencyNumber(total, currency)}</span>
-        <span className="mt-1 text-[10px] text-slate-500">Total {label}</span>
+        <span className="text-lg font-bold leading-tight text-slate-800">{formatCurrencyNumber(total, currency)}</span>
+        <span className="mt-1 text-[9px] text-slate-500">Total {label}</span>
       </div>
 
       {labelPositions.map((item) => (
@@ -432,7 +383,7 @@ export default function TransactionsTable({
           name: transaction.category.name,
           value: 0,
           icon: transaction.category.icon || getTypeFallbackIcon(type),
-          ...palette[index % palette.length],
+          color: palette[index % palette.length],
         };
 
         current.value += normalizedAmountForDisplay(transaction);
@@ -443,7 +394,7 @@ export default function TransactionsTable({
         .sort((a, b) => b.value - a.value)
         .map((entry, index) => ({
           ...entry,
-          ...DONUT_PALETTES[type][index % DONUT_PALETTES[type].length],
+          color: DONUT_PALETTES[type][index % DONUT_PALETTES[type].length],
           percentage: total === 0 ? 0 : (entry.value / total) * 100,
         }));
     };
@@ -747,7 +698,7 @@ export default function TransactionsTable({
               {categoryBreakdowns.income.length ? categoryBreakdowns.income.map((entry) => (
                 <div key={entry.name} className="flex items-center justify-between gap-2 text-[11px] text-slate-600">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border" style={{ backgroundColor: `${entry.color}18`, borderColor: entry.color }}>
                       <IconDisplay icon={entry.icon} className="h-4 w-4 object-contain" />
                     </span>
                     <span className="truncate">{entry.name}</span>
@@ -776,7 +727,7 @@ export default function TransactionsTable({
               {categoryBreakdowns.expense.length ? categoryBreakdowns.expense.map((entry) => (
                 <div key={entry.name} className="flex items-center justify-between gap-2 text-[11px] text-slate-600">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border" style={{ backgroundColor: `${entry.color}18`, borderColor: entry.color }}>
                       <IconDisplay icon={entry.icon} className="h-4 w-4 object-contain" />
                     </span>
                     <span className="truncate">{entry.name}</span>
