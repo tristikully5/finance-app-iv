@@ -108,7 +108,7 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
     const elbowX = 50 + Math.cos(radians) * elbowRadius;
     const elbowY = 50 + Math.sin(radians) * elbowRadius;
     const anchor = elbowX > 50 ? "start" : "end";
-    const lineEndX = anchor === "start" ? 80 : 20;
+    const lineEndX = anchor === "start" ? 77 : 23;
     const lineEndY = Math.max(8, Math.min(92, elbowY));
 
     return {
@@ -155,7 +155,7 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
     <div className="relative h-48 w-48">
       <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
         {labelPositions.map((item) => (
-          <polyline key={`${item.key}-line`} points={`${item.lineStartX},${item.lineStartY} ${item.elbowX},${item.elbowY} ${item.lineEndX},${item.lineEndY}`} fill="none" stroke="#94a3b8" strokeWidth="0.45" strokeLinecap="round" strokeLinejoin="round" />
+          <path key={`${item.key}-line`} d={`M ${item.lineStartX} ${item.lineStartY} C ${item.lineStartX + (item.elbowX - item.lineStartX) * 0.45} ${item.lineStartY} ${item.elbowX} ${item.elbowY} ${item.elbowX} ${item.elbowY} L ${item.lineEndX} ${item.lineEndY}`} fill="none" stroke="#94a3b8" strokeWidth="0.45" strokeLinecap="round" strokeLinejoin="round" />
         ))}
       </svg>
 
@@ -185,7 +185,7 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
             maxWidth: "34%",
           }}
         >
-          <div className="space-y-0.5 text-[10px] leading-tight text-slate-600" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
+          <div className="space-y-0.5 bg-white/95 px-0.5 text-[10px] leading-tight text-slate-600" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
             <div className="whitespace-nowrap font-semibold">{item.name}</div>
             <div className="whitespace-nowrap text-[9px] text-slate-500">{item.percent}%</div>
           </div>
