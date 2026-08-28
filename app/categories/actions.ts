@@ -6,7 +6,7 @@ import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { ensureMonthSnapshot } from "@/lib/month-snapshots";
-import { defaultExpenseColorValue, defaultIconValue, defaultIncomeColorValue, defaultTransferColorValue, defaultTransferIconValue, isCustomIcon, isHexColor } from "@/lib/icon-options";
+import { defaultAllocateColorValue, defaultAllocateIconValue, defaultExpenseColorValue, defaultIconValue, defaultIncomeColorValue, defaultTransferColorValue, defaultTransferIconValue, isCustomIcon, isHexColor } from "@/lib/icon-options";
 
 export async function uploadCustomIcon(formData: FormData) {
   const file = formData.get("icon");
@@ -70,6 +70,57 @@ export async function updateTransferIcon(formData: FormData) {
       data: {
         name: "Transfer",
         type: "Transfer",
+        icon,
+        color,
+        sortOrder: (highestOrder._max.sortOrder ?? -1) + 1,
+        defaultBudgetAmount: 0,
+        defaultBudgetCurrency: "SGD",
+        archived: false,
+      },
+    });
+  }
+
+  revalidatePath("/");
+  revalidatePath("/categories");
+  revalidatePath("/transactions");
+  return { success: true, icon, color };
+}
+
+export async function updateAllocateIcon(formData: FormData) {
+  const submittedIcon = (formData.get("icon") as string | null)?.trim();
+  const submittedColor = ((formData.get("color") as string | null)?.trim() || "").toLowerCase();
+  const icon = isCustomIcon(submittedIcon) ? submittedIcon : defaultAllocateIconValue;
+  const color = isHexColor(submittedColor) ? submittedColor : defaultAllocateColorValue;
+
+  const allocateTemplate = await prisma.categoryTemplate.findFirst({
+    where: {
+      name: "Allocate",
+      type: "Allocate",
+    },
+    orderBy: { id: "asc" },
+    select: { id: true },
+  });
+
+  if (allocateTemplate) {
+    await prisma.$transaction([
+      prisma.categoryTemplate.update({
+        where: { id: allocateTemplate.id },
+        data: { icon, color },
+      }),
+      prisma.monthCategory.updateMany({
+        where: { templateCategoryId: allocateTemplate.id },
+        data: { icon, color },
+      }),
+    ]);
+  } else {
+    const highestOrder = await prisma.categoryTemplate.aggregate({
+      _max: { sortOrder: true },
+    });
+
+    await prisma.categoryTemplate.create({
+      data: {
+        name: "Allocate",
+        type: "Allocate",
         icon,
         color,
         sortOrder: (highestOrder._max.sortOrder ?? -1) + 1,

@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import IconDisplay from "./IconDisplay";
 import IconPicker from "@/components/IconPicker";
-import { updateTransferIcon, uploadCustomIcon } from "@/app/categories/actions";
-import { defaultIconValue, defaultTransferColorValue, defaultTransferIconValue, getCategoryTypeDefaultColorValue, getCategoryTypeDefaultIconValue, getDefaultIconValue, setCategoryTypeDefaultColorValue, setCategoryTypeDefaultIconValue, setDefaultIconValue, type IconOption } from "@/lib/icon-options";
+import { updateAllocateIcon, updateTransferIcon, uploadCustomIcon } from "@/app/categories/actions";
+import { defaultAllocateColorValue, defaultAllocateIconValue, defaultExpenseColorValue, defaultIconValue, defaultIncomeColorValue, defaultTransferColorValue, defaultTransferIconValue, getCategoryTypeDefaultColorValue, getCategoryTypeDefaultIconValue, getDefaultIconValue, setCategoryTypeDefaultColorValue, setCategoryTypeDefaultIconValue, setDefaultIconValue, type IconOption } from "@/lib/icon-options";
 
-export default function SettingsClient({ initialTransferIcon = defaultTransferIconValue }: { initialTransferIcon?: string }) {
+export default function SettingsClient({ initialTransferIcon = defaultTransferIconValue, initialAllocateIcon = defaultAllocateIconValue }: { initialTransferIcon?: string; initialAllocateIcon?: string }) {
   const [icons, setIcons] = useState<IconOption[]>([]);
   const [currencies, setCurrencies] = useState<string[]>([]);
   const [newCurrency, setNewCurrency] = useState("");
@@ -14,10 +14,12 @@ export default function SettingsClient({ initialTransferIcon = defaultTransferIc
   const [defaultIcon, setDefaultIcon] = useState<string>(defaultIconValue);
   const [expenseIcon, setExpenseIcon] = useState<string>(defaultIconValue);
   const [incomeIcon, setIncomeIcon] = useState<string>(defaultIconValue);
-  const [expenseColor, setExpenseColor] = useState<string>(defaultTransferColorValue);
-  const [incomeColor, setIncomeColor] = useState<string>(defaultTransferColorValue);
+  const [expenseColor, setExpenseColor] = useState<string>(defaultExpenseColorValue);
+  const [incomeColor, setIncomeColor] = useState<string>(defaultIncomeColorValue);
   const [transferColor, setTransferColor] = useState<string>(defaultTransferColorValue);
+  const [allocateColor, setAllocateColor] = useState<string>(defaultAllocateColorValue);
   const [transferIcon, setTransferIcon] = useState(initialTransferIcon || defaultTransferIconValue);
+  const [allocateIcon, setAllocateIcon] = useState(initialAllocateIcon || defaultAllocateIconValue);
 
   useEffect(() => {
     const saved = localStorage.getItem("finance:currencies");
@@ -36,8 +38,11 @@ export default function SettingsClient({ initialTransferIcon = defaultTransferIc
     setExpenseColor(getCategoryTypeDefaultColorValue("Expense"));
     setIncomeColor(getCategoryTypeDefaultColorValue("Income"));
     setTransferColor(getCategoryTypeDefaultColorValue("Transfer"));
+    setAllocateColor(getCategoryTypeDefaultColorValue("Allocate"));
+    setTransferIcon(initialTransferIcon || defaultTransferIconValue);
+    setAllocateIcon(initialAllocateIcon || defaultAllocateIconValue);
     fetchIcons();
-  }, []);
+  }, [initialAllocateIcon, initialTransferIcon]);
 
   const fetchIcons = async () => {
     const res = await fetch("/api/icons");
@@ -145,6 +150,22 @@ export default function SettingsClient({ initialTransferIcon = defaultTransferIc
         }
       },
     },
+    {
+      label: "Allocate",
+      description: "Default icon and color for allocate transactions",
+      iconValue: allocateIcon,
+      iconType: "Allocate" as const,
+      colorValue: allocateColor,
+      onSave: async (formData: FormData) => {
+        const result = await updateAllocateIcon(formData);
+        if ("icon" in result) {
+          setAllocateIcon(result.icon);
+          if ("color" in result) {
+            setAllocateColor(result.color);
+          }
+        }
+      },
+    },
   ];
 
   return (
@@ -174,6 +195,7 @@ export default function SettingsClient({ initialTransferIcon = defaultTransferIc
                       if (row.label === "Expense") setExpenseColor(nextColor);
                       if (row.label === "Income") setIncomeColor(nextColor);
                       if (row.label === "Transfer") setTransferColor(nextColor);
+                      if (row.label === "Allocate") setAllocateColor(nextColor);
                     }}
                     className="h-9 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
                     aria-label={`Choose ${row.label.toLowerCase()} color`}

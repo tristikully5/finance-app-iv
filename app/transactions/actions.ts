@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { buildMonthKey } from "@/lib/budgets";
 import { ensureMonthSnapshot } from "@/lib/month-snapshots";
-import { defaultIconValue, defaultTransferIconValue } from "@/lib/icon-options";
+import { defaultAllocateIconValue, defaultIconValue, defaultTransferIconValue } from "@/lib/icon-options";
 
 function parseAmount(value: FormDataEntryValue | null) {
   const amount = Number(value);
@@ -14,10 +14,17 @@ function parseAmount(value: FormDataEntryValue | null) {
 
 function parseTags(value: FormDataEntryValue | null) {
   if (typeof value !== "string") return [];
-  return value
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((tag): tag is string => typeof tag === "string").map((tag) => tag.trim()).filter(Boolean);
+    }
+  } catch {
+    // Accept legacy comma-separated values.
+  }
+
+  return value.split(",").map((tag) => tag.trim()).filter(Boolean);
 }
 
 function parseName(value: FormDataEntryValue | null) {
@@ -55,27 +62,59 @@ function isMissingColumnError(error: unknown, columnNames: string[] | string) {
   return cols.some((c) => msg.includes(c.toLowerCase()));
 }
 
+async function recalculateConcludedGoalAllocations(tx: Prisma.TransactionClient, goalId: number) {
+  const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { status: true, amountUsed: true } });
+  if (!goal || goal.status !== "Concluded") return;
+
+  const allocations = await tx.transaction.findMany({
+    where: { goalId, type: "Allocate" },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
+    select: { id: true, amount: true, allocationState: true, allocationOutcome: true, allocationOutcomeAmount: true },
+  });
+  const actualSpent = Math.max(goal.amountUsed, 0);
+
+  let remainingSpent = actualSpent;
+  for (const allocation of allocations) {
+    const originalAmount = Math.max(allocation.amount, 0);
+    const consumedAmount = Math.min(originalAmount, remainingSpent);
+    const outcome = originalAmount <= 0 ? "Cancelled" : consumedAmount > 0 ? "Spent" : "Released";
+    const outcomeAmount = originalAmount <= 0 ? 0 : consumedAmount > 0 ? consumedAmount : originalAmount;
+
+    await tx.transaction.update({
+      where: { id: allocation.id },
+      data: {
+        allocationState: "Concluded",
+        allocationOutcome: outcome,
+        allocationOutcomeAmount: outcomeAmount,
+      },
+    });
+
+    remainingSpent = Math.max(0, remainingSpent - originalAmount);
+  }
+}
+
 async function syncGoalAmountUsed(tx: Prisma.TransactionClient, goalIds: number[]) {
   const uniqueGoalIds = [...new Set(goalIds.filter((goalId) => goalId > 0))];
 
   await Promise.all(
     uniqueGoalIds.map(async (goalId) => {
+      const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { status: true } });
+      if (goal?.status === "Concluded") {
+        await recalculateConcludedGoalAllocations(tx, goalId);
+        return;
+      }
+
       const totals = await tx.transaction.aggregate({
         where: { goalId },
         _sum: { amount: true },
       });
 
-      await tx.goal.update({
-        where: { id: goalId },
-        data: {
-          amountUsed: totals._sum.amount ?? 0,
-        },
-      });
+      await tx.goal.update({ where: { id: goalId }, data: { amountUsed: totals._sum.amount ?? 0 } });
     })
   );
 }
 
-async function ensureTransferMonthCategories(date: Date) {
+async function ensureAutoMonthCategory(date: Date, typeName: "Transfer" | "Allocate") {
   const monthKey = buildMonthKey(date.getFullYear(), date.getMonth() + 1);
   const month = await ensureMonthSnapshot(monthKey);
 
@@ -85,20 +124,20 @@ async function ensureTransferMonthCategories(date: Date) {
     });
     const nextSortOrder = (highestOrder._max.sortOrder ?? -1) + 1;
 
-    let transferTemplate = await tx.categoryTemplate.findFirst({
+    let template = await tx.categoryTemplate.findFirst({
       where: {
-        name: "Transfer",
-        type: "Transfer",
+        name: typeName,
+        type: typeName,
       },
       orderBy: { id: "asc" },
     });
 
-    if (!transferTemplate) {
-      transferTemplate = await tx.categoryTemplate.create({
+    if (!template) {
+      template = await tx.categoryTemplate.create({
         data: {
-          name: "Transfer",
-          type: "Transfer",
-          icon: defaultTransferIconValue,
+          name: typeName,
+          type: typeName,
+          icon: typeName === "Transfer" ? defaultTransferIconValue : defaultAllocateIconValue,
           color: "slate",
           sortOrder: nextSortOrder,
           defaultBudgetAmount: 0,
@@ -108,29 +147,29 @@ async function ensureTransferMonthCategories(date: Date) {
       });
     }
 
-    const transferMonthCategory = await tx.monthCategory.upsert({
+    const monthCategory = await tx.monthCategory.upsert({
       where: {
         monthId_templateCategoryId: {
           monthId: month.id,
-          templateCategoryId: transferTemplate.id,
+          templateCategoryId: template.id,
         },
       },
       update: {},
       create: {
         monthId: month.id,
-        templateCategoryId: transferTemplate.id,
-        name: transferTemplate.name,
-        type: transferTemplate.type,
-        icon: transferTemplate.icon,
-        color: transferTemplate.color,
-        sortOrder: transferTemplate.sortOrder,
+        templateCategoryId: template.id,
+        name: template.name,
+        type: template.type,
+        icon: template.icon,
+        color: template.color,
+        sortOrder: template.sortOrder,
         archived: false,
-        budgetAmount: transferTemplate.defaultBudgetAmount,
-        budgetCurrency: transferTemplate.defaultBudgetCurrency,
+        budgetAmount: template.defaultBudgetAmount,
+        budgetCurrency: template.defaultBudgetCurrency,
       },
     });
 
-    return transferMonthCategory.id;
+    return monthCategory.id;
   });
 }
 
@@ -168,29 +207,21 @@ export async function createTransaction(formData: FormData) {
       throw new Error("Transfer requires a source account.");
     }
 
-    if (!toAccountId && !goalId) {
-      throw new Error("Transfer requires a destination account or a goal.");
+    if (!toAccountId) {
+      throw new Error("Transfer requires a destination account.");
     }
 
-    if (toAccountId && goalId) {
-      throw new Error("Transfer can go to an account or a goal, but not both.");
+    if (goalId) {
+      throw new Error("Transfers cannot target a goal. Use Allocate for goal earmarks.");
     }
 
-    if (toAccountId && fromAccountId === toAccountId) {
+    if (fromAccountId === toAccountId) {
       throw new Error("Transfer source and destination accounts must be different.");
     }
 
-    const transferMonthCategoryId = await ensureTransferMonthCategories(parsedDate);
+    const transferMonthCategoryId = await ensureAutoMonthCategory(parsedDate, "Transfer");
 
-    const needSyncGoals: number[] = [];
     await prisma.$transaction(async (tx) => {
-      if (goalId) {
-        const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { id: true } });
-        if (!goal) {
-          throw new Error("Selected goal does not exist.");
-        }
-      }
-
       try {
         await tx.transaction.create({
           data: {
@@ -202,22 +233,73 @@ export async function createTransaction(formData: FormData) {
             currency,
             type: "Transfer",
             accountId: fromAccountId,
-            toAccountId: toAccountId || null,
-            goalId: goalId || null,
+            toAccountId,
+            goalId: null,
             monthCategoryId: transferMonthCategoryId,
           },
         });
-        if (goalId) needSyncGoals.push(goalId);
       } catch (error) {
         if (!isUnknownToAccountIdError(error) && !isMissingColumnError(error, ["description", "tags"])) {
           throw error;
         }
 
-        // Fallback for stale Prisma client processes or DBs missing new columns: insert without description/tags.
         await prisma.$executeRaw(
-          Prisma.sql`INSERT INTO "Transaction" ("date", "name", "amount", "currency", "type", "accountId", "toAccountId", "goalId", "monthCategoryId") VALUES (${parsedDate}, ${name}, ${amount}, ${currency}, 'Transfer', ${fromAccountId}, ${toAccountId || null}, ${goalId || null}, ${transferMonthCategoryId})`
+          Prisma.sql`INSERT INTO "Transaction" ("date", "name", "amount", "currency", "type", "accountId", "toAccountId", "goalId", "monthCategoryId") VALUES (${parsedDate}, ${name}, ${amount}, ${currency}, 'Transfer', ${fromAccountId}, ${toAccountId}, NULL, ${transferMonthCategoryId})`
         );
-        if (goalId) needSyncGoals.push(goalId);
+      }
+    });
+
+    revalidatePath("/");
+    revalidatePath("/transactions");
+    revalidatePath("/accounts");
+    return;
+  }
+
+  if (selectedType === "Allocate") {
+    const sourceAccountId = fromAccountId || accountId;
+    if (!sourceAccountId) {
+      throw new Error("Allocate requires a source account.");
+    }
+
+    if (!goalId) {
+      throw new Error("Allocate requires a goal.");
+    }
+
+    const allocateMonthCategoryId = await ensureAutoMonthCategory(parsedDate, "Allocate");
+    const needSyncGoals: number[] = [];
+    await prisma.$transaction(async (tx) => {
+      const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { id: true } });
+      if (!goal) {
+        throw new Error("Selected goal does not exist.");
+      }
+
+      try {
+        await tx.transaction.create({
+          data: {
+            date: parsedDate,
+            name,
+            description,
+            tags,
+            amount,
+            currency,
+            type: "Allocate",
+            accountId: sourceAccountId,
+            toAccountId: null,
+            goalId,
+            allocationState: "Allocated",
+            monthCategoryId: allocateMonthCategoryId,
+          },
+        });
+        needSyncGoals.push(goalId);
+      } catch (error) {
+        if (!isUnknownToAccountIdError(error) && !isMissingColumnError(error, ["description", "tags"])) {
+          throw error;
+        }
+
+        await prisma.$executeRaw(
+          Prisma.sql`INSERT INTO "Transaction" ("date", "name", "amount", "currency", "type", "accountId", "toAccountId", "goalId", "allocationState", "monthCategoryId") VALUES (${parsedDate}, ${name}, ${amount}, ${currency}, 'Allocate', ${sourceAccountId}, NULL, ${goalId}, 'Allocated', ${allocateMonthCategoryId})`
+        );
+        needSyncGoals.push(goalId);
       }
     });
 
@@ -254,6 +336,7 @@ export async function createTransaction(formData: FormData) {
         currency,
         type: monthCategory.type,
         accountId,
+        goalId: goalId || null,
         monthCategoryId,
       },
     });
@@ -261,11 +344,17 @@ export async function createTransaction(formData: FormData) {
     if (isUnknownPrismaArgumentError(error, ["description", "tags"]) || isMissingColumnError(error, ["description", "tags"])) {
       // Fallback to raw SQL insert to avoid Prisma generating SQL that references missing columns.
       await prisma.$executeRaw(
-        Prisma.sql`INSERT INTO "Transaction" ("date", "name", "amount", "currency", "type", "accountId", "monthCategoryId") VALUES (${parsedDate}, ${name}, ${amount}, ${currency}, ${monthCategory.type}, ${accountId}, ${monthCategoryId})`
+        Prisma.sql`INSERT INTO "Transaction" ("date", "name", "amount", "currency", "type", "accountId", "goalId", "monthCategoryId") VALUES (${parsedDate}, ${name}, ${amount}, ${currency}, ${monthCategory.type}, ${accountId}, ${goalId ? goalId : null}, ${monthCategoryId})`
       );
     } else {
       throw error;
     }
+  }
+
+  if (goalId) {
+    await prisma.$transaction(async (tx) => {
+      await syncGoalAmountUsed(tx, [goalId]);
+    });
   }
 
   revalidatePath("/");
@@ -289,7 +378,15 @@ export async function updateTransaction(formData: FormData) {
   const parsedDate = new Date(date);
   const existingTransaction = await prisma.transaction.findUnique({
     where: { id },
-    select: { goalId: true, accountId: true, toAccountId: true },
+    select: {
+      goalId: true,
+      accountId: true,
+      toAccountId: true,
+      amount: true,
+      allocationState: true,
+      allocationOutcome: true,
+      allocationOutcomeAmount: true,
+    },
   });
 
   if (selectedType === "Transfer") {
@@ -297,39 +394,27 @@ export async function updateTransaction(formData: FormData) {
       throw new Error("Transfer requires a source account.");
     }
 
-    if (!toAccountId && !goalId) {
-      throw new Error("Transfer requires a destination account or a goal.");
+    if (!toAccountId) {
+      throw new Error("Transfer requires a destination account.");
     }
 
-    if (toAccountId && goalId) {
-      throw new Error("Transfer can go to an account or a goal, but not both.");
+    if (goalId) {
+      throw new Error("Transfers cannot target a goal. Use Allocate for goal earmarks.");
     }
 
-    if (toAccountId && accountId === toAccountId) {
-      // If user selected the same account for source and destination while editing,
-      // swap the accounts using the existing transaction's account values so the
-      // transfer direction is reversed instead of failing.
+    if (accountId === toAccountId) {
       const prevAccount = existingTransaction?.accountId ?? null;
       const prevToAccount = existingTransaction?.toAccountId ?? null;
       if (prevAccount && prevToAccount && prevAccount !== prevToAccount) {
         accountId = prevToAccount;
-        // if previous toAccount was null, keep current toAccountId
         toAccountId = prevAccount;
       } else {
         throw new Error("Transfer source and destination accounts must be different.");
       }
     }
 
-    const transferMonthCategoryId = await ensureTransferMonthCategories(parsedDate);
-    const needSyncGoals: number[] = [];
+    const transferMonthCategoryId = await ensureAutoMonthCategory(parsedDate, "Transfer");
     await prisma.$transaction(async (tx) => {
-      if (goalId) {
-        const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { id: true } });
-        if (!goal) {
-          throw new Error("Selected goal does not exist.");
-        }
-      }
-
       try {
         await tx.transaction.update({
           where: { id },
@@ -342,9 +427,77 @@ export async function updateTransaction(formData: FormData) {
             currency,
             type: "Transfer",
             accountId,
-            toAccountId: toAccountId || null,
-            goalId: goalId || null,
+            toAccountId,
+            goalId: null,
             monthCategoryId: transferMonthCategoryId,
+          },
+        });
+      } catch (error) {
+        if (!isUnknownToAccountIdError(error) && !isMissingColumnError(error, ["description", "tags"])) {
+          throw error;
+        }
+
+        await prisma.$executeRaw(
+          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Transfer', "accountId" = ${accountId}, "toAccountId" = ${toAccountId}, "goalId" = NULL, "monthCategoryId" = ${transferMonthCategoryId} WHERE "id" = ${id}`
+        );
+      }
+    });
+
+    if (existingTransaction?.goalId) {
+      await prisma.$transaction(async (tx) => {
+        await syncGoalAmountUsed(tx, [existingTransaction.goalId ?? 0]);
+      });
+    }
+
+    revalidatePath("/");
+    revalidatePath("/transactions");
+    revalidatePath("/accounts");
+    if (existingTransaction?.goalId) {
+      revalidatePath("/goals");
+    }
+    return;
+  }
+
+  if (selectedType === "Allocate") {
+    const sourceAccountId = accountId || parseId(formData.get("fromAccountId"));
+    if (!sourceAccountId) {
+      throw new Error("Allocate requires a source account.");
+    }
+
+    if (!goalId) {
+      throw new Error("Allocate requires a goal.");
+    }
+
+    const allocateMonthCategoryId = await ensureAutoMonthCategory(parsedDate, "Allocate");
+    const hasConclusion = existingTransaction?.allocationState === "Concluded";
+    const nextAllocationState = hasConclusion ? "Concluded" : "Allocated";
+    const nextAllocationOutcome = hasConclusion ? existingTransaction.allocationOutcome : null;
+    const nextAllocationOutcomeAmount = hasConclusion ? existingTransaction.allocationOutcomeAmount : 0;
+    const needSyncGoals: number[] = [];
+    await prisma.$transaction(async (tx) => {
+      const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { id: true } });
+      if (!goal) {
+        throw new Error("Selected goal does not exist.");
+      }
+
+      try {
+        await tx.transaction.update({
+          where: { id },
+          data: {
+            date: parsedDate,
+            name,
+            description,
+            tags,
+            amount,
+            currency,
+            type: "Allocate",
+            accountId: sourceAccountId,
+            toAccountId: null,
+            goalId,
+            allocationState: nextAllocationState,
+            allocationOutcome: nextAllocationOutcome,
+            allocationOutcomeAmount: nextAllocationOutcomeAmount,
+            monthCategoryId: allocateMonthCategoryId,
           },
         });
         needSyncGoals.push(existingTransaction?.goalId ?? 0, goalId);
@@ -354,7 +507,7 @@ export async function updateTransaction(formData: FormData) {
         }
 
         await prisma.$executeRaw(
-          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Transfer', "accountId" = ${accountId}, "toAccountId" = ${toAccountId || null}, "goalId" = ${goalId || null}, "monthCategoryId" = ${transferMonthCategoryId} WHERE "id" = ${id}`
+          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Allocate', "accountId" = ${sourceAccountId}, "toAccountId" = NULL, "goalId" = ${goalId}, "allocationState" = ${nextAllocationState}, "allocationOutcome" = ${nextAllocationOutcome}, "allocationOutcomeAmount" = ${nextAllocationOutcomeAmount}, "monthCategoryId" = ${allocateMonthCategoryId} WHERE "id" = ${id}`
         );
         needSyncGoals.push(existingTransaction?.goalId ?? 0, goalId);
       }
@@ -382,6 +535,7 @@ export async function updateTransaction(formData: FormData) {
     throw new Error("Selected category type does not match transaction type.");
   }
 
+  const needSyncGoals: number[] = [];
   try {
     await prisma.transaction.update({
       where: { id },
@@ -395,23 +549,26 @@ export async function updateTransaction(formData: FormData) {
         type: selectedType,
         accountId,
         toAccountId: null,
-        goalId: null,
+        goalId: goalId || null,
         monthCategoryId,
       },
     });
+    needSyncGoals.push(existingTransaction?.goalId ?? 0, goalId);
   } catch (error) {
     if (isUnknownPrismaArgumentError(error, ["description", "tags"]) || isMissingColumnError(error, ["description", "tags"])) {
       await prisma.$executeRaw(
-        Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = ${selectedType}, "accountId" = ${accountId}, "toAccountId" = NULL, "goalId" = NULL, "monthCategoryId" = ${monthCategoryId} WHERE "id" = ${id}`
+        Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = ${selectedType}, "accountId" = ${accountId}, "toAccountId" = NULL, "goalId" = ${goalId ? goalId : null}, "monthCategoryId" = ${monthCategoryId} WHERE "id" = ${id}`
       );
+      needSyncGoals.push(existingTransaction?.goalId ?? 0, goalId);
     } else {
       throw error;
     }
   }
 
-  if (existingTransaction?.goalId) {
+  const uniqueNeedSync = [...new Set(needSyncGoals.filter((g) => g > 0))];
+  if (uniqueNeedSync.length > 0) {
     await prisma.$transaction(async (tx) => {
-      await syncGoalAmountUsed(tx, [existingTransaction.goalId ?? 0]);
+      await syncGoalAmountUsed(tx, uniqueNeedSync);
     });
   }
 

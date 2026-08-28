@@ -1,7 +1,7 @@
 import PageHeader from "@/components/PageHeader";
 import SettingsClient from "@/components/SettingsClient";
 import { prisma } from "@/lib/prisma";
-import { defaultTransferIconValue } from "@/lib/icon-options";
+import { defaultAllocateIconValue, defaultTransferIconValue } from "@/lib/icon-options";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +11,16 @@ export default async function SettingsPage() {
     orderBy: { id: "asc" },
     select: { icon: true },
   });
+  const allocateTemplate = await prisma.categoryTemplate.findFirst({
+    where: { name: "Allocate", type: "Allocate" },
+    orderBy: { id: "asc" },
+    select: { icon: true },
+  });
 
   return (
     <div className="space-y-5">
       <PageHeader breadcrumbs={[{ label: "Overview", href: "/" }, { label: "Settings" }]} title="Settings" description="Manage currencies, custom icons, and other preferences." />
-      <SettingsClient initialTransferIcon={transferTemplate?.icon || defaultTransferIconValue} />
+      <SettingsClient initialTransferIcon={transferTemplate?.icon || defaultTransferIconValue} initialAllocateIcon={allocateTemplate?.icon || defaultAllocateIconValue} />
     </div>
   );
 }

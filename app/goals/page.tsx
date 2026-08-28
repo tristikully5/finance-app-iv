@@ -15,28 +15,41 @@ export default async function GoalsPage() {
     description: string | null;
     status: string;
     amountUsed: number;
+    allocations: Array<{ amount: number; type: string; allocationState?: string | null; allocationOutcome?: string | null; allocationOutcomeAmount?: number | null }>;
   }> = [];
   let loadError = false;
 
   try {
     goals = await prisma.goal.findMany({
       orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        icon: true,
-        amount: true,
-        currency: true,
-        targetDate: true,
-        description: true,
-        status: true,
-        amountUsed: true,
+      include: {
+        allocations: {
+          select: {
+            amount: true,
+            type: true,
+            allocationState: true,
+            allocationOutcome: true,
+            allocationOutcomeAmount: true,
+          },
+        },
       },
     });
   } catch (error) {
     loadError = true;
     console.error("Failed to load goals:", error);
   }
+
+  const normalizedGoals = goals.map((goal) => {
+    const allocated = goal.allocations.reduce((sum, transaction) => sum + (transaction.amount > 0 ? transaction.amount : 0), 0);
+    const spent = goal.allocations.reduce((sum, transaction) => sum + (transaction.amount < 0 ? Math.abs(transaction.amount) : 0), 0);
+    const finalSpent = goal.status === "Concluded" ? goal.amountUsed : spent;
+
+    return {
+      ...goal,
+      allocated,
+      spent: finalSpent,
+    };
+  });
 
   if (loadError) {
     return (
@@ -47,5 +60,5 @@ export default async function GoalsPage() {
     );
   }
 
-  return <GoalsBoard goals={goals} />;
+  return <GoalsBoard goals={normalizedGoals} />;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import StandardDialog, { type DialogVariant } from "@/components/StandardDialog";
 import { useState } from "react";
 
 function useCardModal() {
@@ -26,7 +27,9 @@ type EditableCardProps = {
   modalTitle?: string;
   modalDescription?: string;
   modalHeaderContent?: React.ReactNode;
+  modalVariant?: DialogVariant;
   cardHref?: string;
+  layout?: "default" | "row";
 };
 
 export default function EditableCard({
@@ -42,7 +45,9 @@ export default function EditableCard({
   modalTitle,
   modalDescription,
   modalHeaderContent,
+  modalVariant = "default",
   cardHref,
+  layout = "default",
 }: EditableCardProps) {
   const router = useRouter();
   const { open, openModal, closeModal } = useCardModal();
@@ -76,13 +81,13 @@ export default function EditableCard({
   return (
     <>
       <div
-        className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md ${isNavigable ? "cursor-pointer" : ""} ${className ?? ""}`}
+        className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md ${layout === "row" ? "sm:flex sm:items-center sm:gap-6" : ""} ${isNavigable ? "cursor-pointer" : ""} ${className ?? ""}`}
         onClick={isNavigable ? handleCardClick : undefined}
         onKeyDown={isNavigable ? handleCardKeyDown : undefined}
         tabIndex={cardHref ? 0 : undefined}
         role={cardHref ? "link" : undefined}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className={`flex items-start justify-between gap-3 ${layout === "row" ? "sm:w-64 sm:shrink-0" : ""}`}>
           <div className="flex min-w-0 items-start gap-3">
             {headerContent ? <div className="shrink-0 text-2xl">{headerContent}</div> : null}
             <div>
@@ -98,31 +103,22 @@ export default function EditableCard({
           ) : null}
         </div>
 
-        <div className="mt-4 space-y-3">{children}</div>
+        <div className={`mt-4 space-y-3 ${layout === "row" ? "sm:mt-0 sm:flex-1" : ""}`}>{children}</div>
       </div>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]" onClick={closeModal}>
-          <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-slate-950">{modalTitle ?? `Edit ${title}`}</h2>
-                {modalDescription ? <p className="mt-1 text-xs text-slate-500">{modalDescription}</p> : null}
-                {modalHeaderContent ? <div className="mt-4">{modalHeaderContent}</div> : null}
-              </div>
-              <button type="button" onClick={closeModal} className="text-xl leading-none text-slate-400 transition hover:text-slate-700" aria-label="Close dialog">
-                ×
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {editContent}
-              {onDelete ? (
-                <div className="flex justify-start pt-1"><button type="button" onClick={onDelete} className="rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">Delete</button></div>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <StandardDialog
+          title={modalTitle ?? `Edit ${title}`}
+          description={modalDescription}
+          headerContent={modalHeaderContent}
+          variant={modalVariant}
+          onClose={closeModal}
+        >
+          {editContent}
+          {onDelete ? (
+            <div className="flex justify-start pt-1"><button type="button" onClick={onDelete} className="rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">Delete</button></div>
+          ) : null}
+        </StandardDialog>
       ) : null}
     </>
   );

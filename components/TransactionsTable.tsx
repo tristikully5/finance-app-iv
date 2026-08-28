@@ -5,13 +5,20 @@ import QuickAddShell from "@/app/components/QuickAddShell";
 import Link from "next/link";
 import TransactionEditDialog from "@/components/TransactionEditDialog";
 import IconDisplay from "@/components/IconDisplay";
+import TransactionTagsCell from "@/components/TransactionTagsCell";
+import MonthCalendarPicker from "@/components/MonthCalendarPicker";
 import { updateTransaction } from "@/app/transactions/actions";
+import {
+  getCategoryTypeDefaultColorValue,
+  getCategoryTypeDefaultIconValue,
+} from "@/lib/icon-options";
 import { useMemo, useState, useEffect } from "react";
+import { transactionTablePresets, type TransactionTablePreset, type TransactionTableView } from "@/components/transaction-table-presets";
 
-type AccountOption = { id: number; name: string; icon: string | null };
-type CategoryOption = { id: number; name: string; type: string; icon?: string | null };
-type GoalOption = { id: number; name: string; icon: string | null };
-type TransactionItem = {
+export type AccountOption = { id: number; name: string; icon: string | null };
+export type CategoryOption = { id: number; name: string; type: string; icon?: string | null };
+export type GoalOption = { id: number; name: string; icon: string | null };
+export type TransactionItem = {
   id: number;
   date: string;
   name: string;
@@ -24,24 +31,27 @@ type TransactionItem = {
   toAccountId: number | null;
   goalId: number | null;
   monthCategoryId: number;
+  allocationState: string;
+  allocationOutcome: string | null;
+  allocationOutcomeAmount: number;
   account: AccountOption;
   toAccount: AccountOption | null;
   goal: GoalOption | null;
   category: CategoryOption;
 };
 
-type ViewMode = "table" | "calendar";
-
-type TransactionsTableProps = {
+export type TransactionsTableProps = {
   transactions: TransactionItem[];
   accounts: AccountOption[];
   categories: CategoryOption[];
   goals: GoalOption[];
+  tagSuggestions?: string[];
   monthLabel: string;
   monthKey: string;
   previousMonthKey: string;
   nextMonthKey: string;
   todayMonthKey: string;
+  preset?: TransactionTablePreset;
 };
 
 function parseMonthKey(value: string) {
@@ -69,53 +79,186 @@ function formatCurrencyLabel(value: number, currency: string) {
 }
 
 const DONUT_PALETTES = {
-  Income: [
-    { strokeClass: "stroke-emerald-600", dotClass: "bg-emerald-600" },
-    { strokeClass: "stroke-emerald-500", dotClass: "bg-emerald-500" },
-    { strokeClass: "stroke-emerald-400", dotClass: "bg-emerald-400" },
-    { strokeClass: "stroke-teal-500", dotClass: "bg-teal-500" },
-  ],
-  Expense: [
-    { strokeClass: "stroke-rose-500", dotClass: "bg-rose-500" },
-    { strokeClass: "stroke-red-500", dotClass: "bg-red-500" },
-    { strokeClass: "stroke-orange-500", dotClass: "bg-orange-500" },
-    { strokeClass: "stroke-orange-400", dotClass: "bg-orange-400" },
-  ],
+  Income: ["#16a34a", "#0d9488", "#2563eb", "#7c3aed", "#db2777", "#f59e0b", "#0891b2"],
+  Expense: ["#e11d48", "#f97316", "#eab308", "#65a30d", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef"],
 };
 
 type DonutEntry = {
   name: string;
   value: number;
   percentage: number;
-  strokeClass: string;
-  dotClass: string;
+  color: string;
+  icon: string;
 };
 
-function SummaryDonut({ entries, label }: { entries: DonutEntry[]; label: string }) {
+function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; label: string; currency: string }) {
   const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+  const centerAmount = formatCurrencyNumber(total, currency);
+  const centerAmountClass = centerAmount.length > 14 ? "text-[10px]" : centerAmount.length > 10 ? "text-xs" : "text-sm";
+
+  const rawLabelPositions = entries.map((entry, index) => {
+    const segment = total === 0 ? 0 : (entry.value / total) * 100;
+    const startAngle = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0) * 3.6 - 90;
+    const midAngle = startAngle + segment * 3.6 / 2;
+    const radians = (midAngle * Math.PI) / 180;
+    const lineStartRadius = 39;
+    const elbowRadius = 50;
+    const lineStartX = 50 + Math.cos(radians) * lineStartRadius;
+    const lineStartY = 50 + Math.sin(radians) * lineStartRadius;
+    const elbowX = 50 + Math.cos(radians) * elbowRadius;
+    const elbowY = 50 + Math.sin(radians) * elbowRadius;
+    const anchor = elbowX > 50 ? "start" : "end";
+    const lineEndX = anchor === "start" ? 77 : 23;
+    const lineEndY = Math.max(8, Math.min(92, elbowY));
+
+    return {
+      ...entry,
+      labelX: anchor === "start" ? 83 : 17,
+      labelY: lineEndY,
+      lineStartX,
+      lineStartY,
+      elbowX,
+      elbowY,
+      lineEndX,
+      lineEndY,
+      anchor,
+      percent: total === 0 ? 0 : Math.round((entry.value / total) * 100),
+      key: `${entry.name}-${index}`,
+    };
+  });
+
+  const adjustedLabelY = new Map<string, number>();
+  for (const anchor of ["start", "end"] as const) {
+    const positions = rawLabelPositions
+      .filter((position) => position.anchor === anchor)
+      .sort((a, b) => a.labelY - b.labelY);
+    let previousY = -Infinity;
+
+    positions.forEach((position) => {
+      const nextY = Math.min(92, Math.max(position.labelY, previousY + 13));
+      adjustedLabelY.set(position.key, nextY);
+      previousY = nextY;
+    });
+  }
+
+  const labelPositions = rawLabelPositions.map((position) => {
+    const nextY = adjustedLabelY.get(position.key) ?? position.labelY;
+    return {
+      ...position,
+      labelY: nextY,
+      elbowY: nextY,
+      lineEndY: nextY,
+    };
+  });
+
   return (
-    <div className="relative h-32 w-32">
-      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-label={`${label} category breakdown`} role="img">
-        <circle cx="50" cy="50" r="39" fill="none" strokeWidth="15" className="stroke-slate-100" />
+    <div className="relative h-48 w-48">
+      <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
+        {labelPositions.map((item) => (
+          <path key={`${item.key}-line`} d={`M ${item.lineStartX} ${item.lineStartY} C ${item.lineStartX + (item.elbowX - item.lineStartX) * 0.45} ${item.lineStartY} ${item.elbowX} ${item.elbowY} ${item.elbowX} ${item.elbowY} L ${item.lineEndX} ${item.lineEndY}`} fill="none" stroke="#94a3b8" strokeWidth="0.45" strokeLinecap="round" strokeLinejoin="round" />
+        ))}
+      </svg>
+
+      <svg viewBox="0 0 100 100" className="relative h-full w-full -rotate-90" aria-label={`${label} category breakdown`} role="img">
+        <circle cx="50" cy="50" r="31" fill="none" strokeWidth="13" className="stroke-slate-100" />
         {entries.map((entry, index) => {
           const segment = total === 0 ? 0 : (entry.value / total) * 100;
           const segmentLength = entries.length > 1 ? Math.max(segment - 0.8, 0) : segment;
           const offset = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0);
-          return <circle key={entry.name} cx="50" cy="50" r="39" fill="none" pathLength="100" strokeWidth="15" strokeLinecap="butt" strokeDasharray={`${segmentLength} ${100 - segmentLength}`} strokeDashoffset={-offset} className={entry.strokeClass} />;
+          return <circle key={entry.name} cx="50" cy="50" r="31" fill="none" pathLength="100" strokeWidth="13" strokeLinecap="butt" strokeDasharray={`${segmentLength} ${100 - segmentLength}`} strokeDashoffset={-offset} stroke={entry.color} />;
         })}
       </svg>
+
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-sm font-bold leading-none text-slate-800">{total > 0 ? "100%" : "0%"}</span>
-        <span className="mt-1 text-[10px] text-slate-500">{label}</span>
+        <span className={`max-w-full whitespace-nowrap font-bold leading-tight text-slate-800 ${centerAmountClass}`}>{centerAmount}</span>
+        <span className="mt-1 whitespace-nowrap text-[9px] text-slate-500">Total {label}</span>
       </div>
+
+      {labelPositions.map((item) => (
+        <div
+          key={item.key}
+          className="pointer-events-none absolute flex items-center"
+          style={{
+            left: `${item.labelX}%`,
+            top: `${item.labelY}%`,
+            transform: `translate(${item.anchor === "start" ? "2px" : "-100%"}, -50%)`,
+            maxWidth: "34%",
+          }}
+        >
+          <div className="space-y-0.5 bg-white/95 px-0.5 text-[10px] leading-tight text-slate-600" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
+            <div className="whitespace-nowrap font-semibold">{item.name}</div>
+            <div className="whitespace-nowrap text-[9px] text-slate-500">{item.percent}%</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
+function normalizedAmountForDisplay(transaction: Pick<TransactionItem, "type" | "amount">) {
+  if (transaction.type === "Expense" && transaction.amount < 0) {
+    return Math.abs(transaction.amount);
+  }
+  return transaction.amount;
+}
+
 function transactionDelta(transaction: TransactionItem) {
   if (transaction.type === "Income") return transaction.amount;
-  if (transaction.type === "Expense") return -transaction.amount;
-  return -transaction.amount;
+  if (transaction.type === "Expense") return -Math.abs(transaction.amount);
+  return -Math.abs(transaction.amount);
+}
+
+function getTransactionTypeIcon(transaction: TransactionItem) {
+  if (transaction.type === "Transfer") {
+    return transaction.category.icon || getCategoryTypeDefaultIconValue("Transfer");
+  }
+  if (transaction.type === "Allocate") {
+    return transaction.category.icon || getCategoryTypeDefaultIconValue("Allocate");
+  }
+  return transaction.category.icon || getCategoryTypeDefaultIconValue(transaction.type === "Income" ? "Income" : "Expense");
+}
+
+type TransactionAccentType = "Income" | "Expense" | "Transfer" | "Allocate";
+
+type TransactionColors = Record<TransactionAccentType, string>;
+
+function transactionAccentType(type: string): TransactionAccentType {
+  if (type === "Income" || type === "Transfer" || type === "Allocate") return type;
+  return "Expense";
+}
+
+function transactionAccentClass(type: string) {
+  return `transaction-accent-${transactionAccentType(type).toLowerCase()}`;
+}
+
+function allocationStatus(transaction: Pick<TransactionItem, "type" | "amount" | "allocationState" | "allocationOutcome" | "allocationOutcomeAmount">) {
+  if (transaction.type !== "Allocate") return null;
+  if (transaction.allocationState !== "Concluded") return "Allocated";
+  if (transaction.allocationOutcome === "Released") return "Released";
+  if (transaction.allocationOutcome === "Cancelled") return "Cancelled";
+  if (transaction.allocationOutcome === "Spent") {
+    return transaction.allocationOutcomeAmount === normalizedAmountForDisplay(transaction) ? "Spent" : "Partially spent";
+  }
+  return "Allocated";
+}
+
+function allocationStatusClass(status: string | null) {
+  if (status === "Released") return "transaction-status-released";
+  if (status === "Cancelled") return "transaction-status-cancelled";
+  if (status === "Partially spent") return "transaction-status-partially-spent";
+  if (status === "Spent") return "transaction-status-spent";
+  return "transaction-status-allocated";
+}
+
+function transactionCategoryLabel(category: CategoryOption) {
+  return category.type === "Allocate" && category.name === "Allocate" ? "Goal allocation" : category.name;
+}
+
+function getTypeFallbackIcon(type: string) {
+  if (type === "Transfer") return getCategoryTypeDefaultIconValue("Transfer");
+  if (type === "Allocate") return getCategoryTypeDefaultIconValue("Allocate");
+  if (type === "Income") return getCategoryTypeDefaultIconValue("Income");
+  return getCategoryTypeDefaultIconValue("Expense");
 }
 
 function destinationValue(transaction: TransactionItem) {
@@ -174,36 +317,52 @@ export default function TransactionsTable({
   accounts,
   categories,
   goals,
+  tagSuggestions = [],
   monthLabel,
   monthKey,
   previousMonthKey,
   nextMonthKey,
   todayMonthKey,
+  preset = transactionTablePresets.full,
 }: TransactionsTableProps) {
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [viewMode, setViewMode] = useState<TransactionTableView>(preset.initialView);
+  const [transactionColors] = useState<TransactionColors>(() => ({
+    Income: getCategoryTypeDefaultColorValue("Income"),
+    Expense: getCategoryTypeDefaultColorValue("Expense"),
+    Transfer: getCategoryTypeDefaultColorValue("Transfer"),
+    Allocate: getCategoryTypeDefaultColorValue("Allocate"),
+  }));
 
   // Read persisted view mode after mount to avoid hydration mismatches.
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("finance:transactions-view");
       if (saved === "table" || saved === "calendar") {
-        setViewMode(saved as ViewMode);
+        setViewMode(saved as TransactionTableView);
       }
     } catch (e) {
       // ignore localStorage errors (e.g., privacy mode)
     }
   }, []);
-  const [typeFilter, setTypeFilter] = useState<"All" | "Income" | "Expense" | "Transfer">("All");
+  const [typeFilter, setTypeFilter] = useState<"All" | "Income" | "Expense" | "Transfer" | "Allocate">("All");
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
 
-  const setViewModeAndPersist = (next: ViewMode) => {
+  const setViewModeAndPersist = (next: TransactionTableView) => {
     setViewMode(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem("finance:transactions-view", next);
     }
   };
+
+  useEffect(() => {
+    Object.entries(transactionColors).forEach(([type, color]) => {
+      document.documentElement.style.setProperty(`--transaction-${type.toLowerCase()}-color`, color);
+    });
+  }, [transactionColors]);
+
+  const activeView = viewMode === "table" && preset.showTableView ? "table" : "calendar";
 
   const filteredTransactions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -233,13 +392,13 @@ export default function TransactionsTable({
 
   const summaryCurrency = filteredTransactions[0]?.currency ?? "SGD";
   const monthIncome = filteredTransactions.filter((item) => item.type === "Income").reduce((sum, item) => sum + item.amount, 0);
-  const monthExpense = filteredTransactions.filter((item) => item.type === "Expense").reduce((sum, item) => sum + item.amount, 0);
+  const monthExpense = filteredTransactions.filter((item) => item.type === "Expense").reduce((sum, item) => sum + normalizedAmountForDisplay(item), 0);
   const monthNet = monthIncome - monthExpense;
 
   const categoryBreakdowns = useMemo(() => {
     const buildBreakdown = (type: "Income" | "Expense") => {
       const typeTransactions = filteredTransactions.filter((item) => item.type === type);
-      const total = typeTransactions.reduce((sum, item) => sum + item.amount, 0);
+      const total = typeTransactions.reduce((sum, item) => sum + normalizedAmountForDisplay(item), 0);
       const grouped = new Map<string, Omit<DonutEntry, "percentage">>();
 
       typeTransactions.forEach((transaction, index) => {
@@ -248,10 +407,11 @@ export default function TransactionsTable({
         const current = grouped.get(key) ?? {
           name: transaction.category.name,
           value: 0,
-          ...palette[index % palette.length],
+          icon: transaction.category.icon || getTypeFallbackIcon(type),
+          color: palette[index % palette.length],
         };
 
-        current.value += transaction.amount;
+        current.value += normalizedAmountForDisplay(transaction);
         grouped.set(key, current);
       });
 
@@ -259,7 +419,7 @@ export default function TransactionsTable({
         .sort((a, b) => b.value - a.value)
         .map((entry, index) => ({
           ...entry,
-          ...DONUT_PALETTES[type][index % DONUT_PALETTES[type].length],
+          color: DONUT_PALETTES[type][index % DONUT_PALETTES[type].length],
           percentage: total === 0 ? 0 : (entry.value / total) * 100,
         }));
     };
@@ -295,7 +455,7 @@ export default function TransactionsTable({
     formData.append("date", overrides.date ?? transaction.date.slice(0, 10));
     formData.append("name", overrides.name ?? transaction.name);
     formData.append("description", overrides.description ?? transaction.description ?? "");
-    formData.append("tags", (overrides.tags ?? transaction.tags ?? []).join(","));
+    formData.append("tags", JSON.stringify(overrides.tags ?? transaction.tags ?? []));
     formData.append("amount", String(overrides.amount ?? transaction.amount));
     formData.append("currency", overrides.currency ?? transaction.currency);
     formData.append("type", overrides.type ?? transaction.type);
@@ -315,42 +475,42 @@ export default function TransactionsTable({
     <>
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <Link href={`/transactions?month=${previousMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Previous month">‹</Link>
-              <div className="flex h-9 min-w-32 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-800">
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
-                {monthLabel}
-                <span aria-hidden="true" className="text-slate-400">⌄</span>
+          {preset.showMonthNavigation ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Link href={`/transactions?month=${previousMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Previous month">‹</Link>
+                <MonthCalendarPicker key={monthKey} monthKey={monthKey} monthLabel={monthLabel} todayMonthKey={todayMonthKey} />
+                <Link href={`/transactions?month=${nextMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Next month">›</Link>
+                <Link href={`/transactions?month=${todayMonthKey}`} className="ml-1 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Today</Link>
               </div>
-              <Link href={`/transactions?month=${nextMonthKey}`} className="inline-flex h-9 w-8 items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50" aria-label="Next month">›</Link>
-              <Link href={`/transactions?month=${todayMonthKey}`} className="ml-1 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Today</Link>
             </div>
-          </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setViewModeAndPersist("calendar")}
-                className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${viewMode === "calendar" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
-              >
-                Calendar
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewModeAndPersist("table")}
-                className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${viewMode === "table" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
-              >
-                Table
-              </button>
-            </div>
+            {preset.showViewToggle ? (
+              <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
+                {preset.showCalendarView ? <button
+                  type="button"
+                  onClick={() => setViewModeAndPersist("calendar")}
+                  className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${activeView === "calendar" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
+                >
+                  Calendar
+                </button> : null}
+                {preset.showTableView ? <button
+                  type="button"
+                  onClick={() => setViewModeAndPersist("table")}
+                  className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-xs font-semibold transition ${activeView === "table" ? "border-slate-200 bg-white text-slate-900 shadow-sm" : "border-transparent bg-transparent text-slate-600 hover:bg-white/60"}`}
+                >
+                  Table
+                </button> : null}
+              </div>
+            ) : null}
 
-            <label className="relative">
+            {preset.showSearch ? <label className="relative">
               <span className="sr-only">Search transactions</span>
               <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search transactions..." className="h-9 w-44 rounded-lg border border-slate-200 px-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-            </label>
-            <label className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600">
+            </label> : null}
+            {preset.showTypeFilter ? <label className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600">
               <FilterIcon />
               <span className="sr-only">Filter transactions</span>
               <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as typeof typeFilter)} className="bg-transparent outline-none">
@@ -358,25 +518,31 @@ export default function TransactionsTable({
                 <option value="Income">Income</option>
                 <option value="Expense">Expense</option>
                 <option value="Transfer">Transfer</option>
+                <option value="Allocate">Allocate</option>
               </select>
-            </label>
-            <QuickAddShell kind="transaction" accounts={accounts} categories={categories} goals={goals} buttonClassName="flex h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" buttonContent="＋ Add transaction" />
+            </label> : null}
+            {preset.showQuickAdd ? <QuickAddShell kind="transaction" accounts={accounts} categories={categories} goals={goals} tagSuggestions={tagSuggestions} buttonClassName="flex h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" buttonContent="＋ Add transaction" /> : null}
           </div>
         </div>
 
-        <div className="p-4 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-4">
+        <div className={`p-4 ${preset.showSummaryPanels ? "xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-4" : ""}`}>
           <div className="min-w-0">
-            {viewMode === "table" ? (
+            {activeView === "table" ? (
               <>
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                   <div className="overflow-x-auto">
-                    <div className="min-w-[640px]">
+                    <div className="min-w-[760px]">
                       {orderedDays.length === 0 ? <div className="p-12 text-center text-sm text-slate-500">No transactions found for {monthLabel}.</div> : orderedDays.map((day) => {
                         const dayTransactions = groupedTransactions[day];
-                        const dayDelta = dayTransactions.reduce((sum, item) => sum + transactionDelta(item), 0);
-                        const isTransferDay = dayTransactions.every((item) => item.type === "Transfer");
-                        const dayBalance = isTransferDay ? dayTransactions.reduce((sum, item) => sum + item.amount, 0) : Math.abs(dayDelta);
-                        const dayBalanceClass = isTransferDay ? "text-slate-600" : dayDelta > 0 ? "text-emerald-600" : dayDelta < 0 ? "text-rose-600" : "text-slate-600";
+                        const cashTransactions = dayTransactions.filter((item) => item.type === "Income" || item.type === "Expense");
+                        const nonCashTransactions = dayTransactions.filter((item) => item.type === "Transfer" || item.type === "Allocate");
+                        const dayCashDelta = cashTransactions.reduce((sum, item) => sum + transactionDelta(item), 0);
+                        const dayNonCashTotal = nonCashTransactions.reduce((sum, item) => sum + Math.abs(item.type === "Allocate" && item.allocationState === "Concluded" ? item.allocationOutcomeAmount : item.amount), 0);
+                        const hasCashActivity = cashTransactions.length > 0;
+                        const hasNonCashActivity = nonCashTransactions.length > 0;
+                        const hasSeparateTotals = hasCashActivity && hasNonCashActivity;
+                        const dayBalance = hasCashActivity ? Math.abs(dayCashDelta) : dayNonCashTotal;
+                        const dayBalanceClass = hasCashActivity ? dayCashDelta > 0 ? "text-emerald-600" : dayCashDelta < 0 ? "text-rose-600" : "text-slate-600" : "text-slate-600";
                         const isOpen = expandedDays[day] ?? true;
 
                         return (
@@ -384,51 +550,52 @@ export default function TransactionsTable({
                             <button type="button" onClick={() => setExpandedDays((current) => ({ ...current, [day]: !isOpen }))} className="transaction-day-grid w-full items-center bg-slate-50 px-4 py-2.5 text-left hover:bg-slate-100">
                               <span className="flex items-center gap-2 text-xs font-semibold text-slate-800"><span className={`text-[10px] transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span><CalendarIcon />{formatDay(`${day}T12:00:00`)}</span>
                               <span />
-                              <span className={`col-start-4 justify-self-end text-right text-xs font-semibold ${dayBalanceClass}`}>{formatCurrencyLabel(dayBalance, dayTransactions[0]?.currency ?? "SGD")}</span>
+                              {preset.showDayTotals ? <>
+                                {hasSeparateTotals ? <span className="col-start-3 justify-self-end text-right text-xs font-semibold text-slate-600" title="Transfers and allocations" aria-label="Transfers and allocations total">{formatCurrencyLabel(dayNonCashTotal, dayTransactions[0]?.currency ?? "SGD")}</span> : <span />}
+                                <span className={`col-start-4 justify-self-end text-right text-xs font-semibold ${dayBalanceClass}`} title={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"} aria-label={hasCashActivity ? "Income and expenses net" : "Transfers and allocations total"}>{formatCurrencyLabel(dayBalance, dayTransactions[0]?.currency ?? "SGD")}</span>
+                              </> : null}
                             </button>
 
                             {isOpen ? dayTransactions.map((transaction) => {
                               const isIncome = transaction.type === "Income";
-                              return <div key={transaction.id} onClick={(event) => { const target = event.target as HTMLElement; if (target.closest("button, input, select, a")) return; setEditingTransaction(transaction); }} className="transaction-row-grid cursor-pointer items-center bg-white px-4 py-3 text-xs hover:bg-slate-50">
-                                <div className="flex min-w-0 items-center gap-2">
-                                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${isIncome ? "bg-emerald-50 text-emerald-600" : transaction.type === "Transfer" ? "bg-violet-50 text-violet-600" : "bg-rose-50 text-rose-600"}`}>
-                                    <IconDisplay icon={transaction.category.icon || (transaction.type === "Transfer" ? "" : undefined)} className="h-4 w-4 object-contain" />
+                              const isReleasedAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Released";
+                              const isSpentAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent";
+                              const originalAllocationAmount = normalizedAmountForDisplay(transaction);
+                              const hasSpentAmountChange = isSpentAllocation && transaction.allocationOutcomeAmount !== originalAllocationAmount;
+                              const isConcludedAllocation = isReleasedAllocation || hasSpentAmountChange;
+                              const status = allocationStatus(transaction);
+                              return <div key={transaction.id} onClick={(event) => { const target = event.target as HTMLElement; if (target.closest("button, input, select, a")) return; setEditingTransaction(transaction); }} className={`transaction-row-grid transaction-card ${transactionAccentClass(transaction.type)} cursor-pointer items-center px-4 py-3 text-xs hover:bg-slate-50`}>
+                                <div className="transaction-category-cell min-w-0">
+                                  <span className="transaction-icon-circle">
+                                    <IconDisplay icon={getTransactionTypeIcon(transaction)} className="h-5 w-5 object-contain" />
                                   </span>
                                   <InlineEditableCell
                                     value={String(transaction.monthCategoryId)}
                                     type="select"
                                     options={categories
                                       .filter((item) => item.type === transaction.type)
-                                      .map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))}
+                                      .map((item) => ({ label: transactionCategoryLabel(item), value: String(item.id), icon: item.icon || getTypeFallbackIcon(transaction.type) }))}
                                     onSave={(value) => makeUpdateForm(transaction, { monthCategoryId: Number(value) || transaction.monthCategoryId })}
-                                    className="min-w-0 truncate font-medium text-slate-700"
-                                    showOptionIcons
+                                    className="min-w-0 truncate font-semibold text-slate-800"
                                   />
                                 </div>
                                 <div className="min-w-0">
-                                  <InlineEditableCell value={transaction.name} onSave={(value) => makeUpdateForm(transaction, { name: value })} className="block truncate font-semibold text-slate-900" />
-                                  {transaction.description ? <div className="mt-0.5 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
-                                  {transaction.tags && transaction.tags.length ? (
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                      {transaction.tags.map((tag) => (
-                                        <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{tag}</span>
-                                      ))}
-                                    </div>
-                                  ) : null}
-
-                                  {transaction.type === "Transfer" ? (
+                                  <InlineEditableCell value={transaction.name} onSave={(value) => makeUpdateForm(transaction, { name: value })} className={`block truncate font-semibold text-slate-900 ${isReleasedAllocation ? "line-through" : ""}`} />
+                                  {(transaction.type === "Transfer" || transaction.type === "Allocate") ? (
                                     <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
                                       <InlineEditableCell noFullWidth value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="min-w-0 truncate text-[11px] text-slate-500" showOptionIcons />
                                       <span className="mx-1"><TransferArrowIcon /></span>
                                       <InlineEditableCell
                                         noFullWidth
-                                        value={destinationValue(transaction)}
+                                        value={transaction.type === "Allocate" ? `goal:${transaction.goalId ?? ""}` : destinationValue(transaction)}
                                         type="select"
-                                        options={[
+                                        options={transaction.type === "Allocate" ? [
+                                          ...goals.map((item) => ({ label: item.name, value: `goal:${item.id}`, icon: item.icon }))
+                                        ] : [
                                           ...accounts.filter((item) => item.id !== transaction.accountId).map((item) => ({ label: item.name, value: `account:${item.id}`, icon: item.icon })),
                                           ...goals.map((item) => ({ label: item.name, value: `goal:${item.id}`, icon: item.icon }))
                                         ]}
-                                        onSave={(value) => makeUpdateForm(transaction, destinationOverrides(value))}
+                                        onSave={(value) => makeUpdateForm(transaction, transaction.type === "Allocate" ? { goalId: Number(value.replace("goal:", "")) || null, toAccountId: null } : destinationOverrides(value))}
                                         className="min-w-0 truncate text-[11px] text-slate-500"
                                         showOptionIcons
                                       />
@@ -437,7 +604,19 @@ export default function TransactionsTable({
                                     <InlineEditableCell value={String(transaction.accountId)} type="select" options={accounts.map((item) => ({ label: item.name, value: String(item.id), icon: item.icon }))} onSave={(value) => makeUpdateForm(transaction, { accountId: Number(value) || transaction.accountId })} className="mt-0.5 block text-[11px] text-slate-500" showOptionIcons />
                                   )}
                                 </div>
-                                <div className={`text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : isIncome ? "text-emerald-600" : "text-rose-600"}`}><InlineEditableCell value={String(transaction.amount)} type="number" displayValue={formatCurrencyLabel(Math.abs(transaction.amount), transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right" /> </div>
+                                <div className="min-w-0 self-start">
+                                  {transaction.description ? <div className="mt-1 truncate text-[12px] text-slate-500">{transaction.description}</div> : null}
+                                  <TransactionTagsCell tags={transaction.tags ?? []} suggestions={tagSuggestions} onSave={(tags) => makeUpdateForm(transaction, { tags })} />
+                                </div>
+                                <div className={`flex flex-col items-end gap-1 text-right font-semibold ${transaction.type === "Transfer" ? "text-slate-600" : transaction.type === "Allocate" ? "text-slate-700" : isIncome ? "text-emerald-600" : "text-rose-600"}`}>
+                                  {preset.showAllocationStatus && status ? <span className={`transaction-status-badge ${allocationStatusClass(status)}`}>{status}</span> : null}
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {hasSpentAmountChange ? <>
+                                      <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className="text-right text-[11px] font-normal text-slate-400 line-through" />
+                                      <span className="whitespace-nowrap text-sm font-semibold text-slate-700">{formatCurrencyLabel(transaction.allocationOutcomeAmount, transaction.currency)}</span>
+                                    </> : <InlineEditableCell value={String(originalAllocationAmount)} type="number" displayValue={formatCurrencyLabel(originalAllocationAmount, transaction.currency)} onSave={(value) => makeUpdateForm(transaction, { amount: Number(value) || 0 })} className={`text-right ${isConcludedAllocation ? "line-through" : ""}`} />}
+                                  </div>
+                                </div>
                             </div>;
                           }) : null}
                         </div>
@@ -474,6 +653,10 @@ export default function TransactionsTable({
                         {dayTransactions.slice(0, 3).map((transaction) => {
                           const isIncome = transaction.type === "Income";
                           const isTransfer = transaction.type === "Transfer";
+                          const isReleasedAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Released";
+                          const isSpentAllocation = transaction.type === "Allocate" && transaction.allocationState === "Concluded" && transaction.allocationOutcome === "Spent";
+                          const hasSpentAmountChange = isSpentAllocation && transaction.allocationOutcomeAmount !== normalizedAmountForDisplay(transaction);
+                          const status = allocationStatus(transaction);
                           const tone = isIncome ? "bg-emerald-100 text-emerald-800 border-emerald-200" : isTransfer ? "bg-violet-100 text-violet-800 border-violet-200" : "bg-rose-100 text-rose-700 border-rose-200";
 
                           return (
@@ -481,17 +664,23 @@ export default function TransactionsTable({
                               key={transaction.id}
                               type="button"
                               onClick={() => setEditingTransaction(transaction)}
-                              className={`w-full rounded-md border px-1.5 py-1 text-left text-[10px] shadow-sm transition hover:opacity-90 ${tone}`}
+                              className={`transaction-calendar-card ${transactionAccentClass(transaction.type)} w-full rounded-md border px-1.5 py-1 text-left text-[10px] shadow-sm transition hover:opacity-90 ${tone}`}
                             >
                               <div className="flex items-center gap-1.5 overflow-hidden">
                                 <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm bg-white/70">
                                   {isTransfer ? <TransferArrowIcon /> : <IconDisplay icon={transaction.category.icon} className="h-3 w-3 object-contain" />}
                                 </span>
-                                <span className="truncate font-semibold">{transaction.name}</span>
+                                <span className={`truncate font-semibold ${isReleasedAllocation ? "line-through" : ""}`}>{transaction.name}</span>
                               </div>
+                              {preset.showAllocationStatus && status ? <span className={`transaction-status-badge ${allocationStatusClass(status)} mt-1`}>{status}</span> : null}
                               <div className="mt-1 flex items-center justify-between gap-1 text-[9px] font-medium">
                                 <span className="truncate">{transaction.account.name}</span>
-                                <span className={isIncome ? "text-emerald-900" : "text-rose-700"}>{transaction.type === "Income" ? formatCurrencyNumber(transaction.amount, transaction.currency) : formatCurrencyNumber(-transaction.amount, transaction.currency)}</span>
+                                <span className={`flex shrink-0 items-center gap-1 ${isIncome ? "text-emerald-900" : "text-rose-700"}`}>
+                                  {hasSpentAmountChange ? <>
+                                    <span className="text-[10px] font-semibold">{formatCurrencyNumber(-transaction.allocationOutcomeAmount, transaction.currency)}</span>
+                                    <span className="text-[9px] text-rose-300 line-through">{formatCurrencyNumber(-transaction.amount, transaction.currency)}</span>
+                                  </> : <span className={isReleasedAllocation ? "line-through" : ""}>{transaction.type === "Income" ? formatCurrencyNumber(transaction.amount, transaction.currency) : formatCurrencyNumber(-transaction.amount, transaction.currency)}</span>}
+                                </span>
                               </div>
                             </button>
                           );
@@ -518,7 +707,7 @@ export default function TransactionsTable({
           )}
         </div>
 
-        <aside className="mt-4 space-y-4 xl:mt-0">
+        {preset.showSummaryPanels ? <aside className="mt-4 space-y-4 xl:mt-0">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -528,13 +717,15 @@ export default function TransactionsTable({
               <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[9px] font-semibold text-slate-400" aria-label="Income breakdown information">i</span>
             </div>
             <div className="mt-3 flex justify-center">
-              <SummaryDonut entries={categoryBreakdowns.income} label="Income" />
+              <SummaryDonut entries={categoryBreakdowns.income} label="Income" currency={summaryCurrency} />
             </div>
             <div className="mt-4 space-y-2">
               {categoryBreakdowns.income.length ? categoryBreakdowns.income.map((entry) => (
                 <div key={entry.name} className="flex items-center justify-between gap-2 text-[11px] text-slate-600">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${entry.dotClass}`} />
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border" style={{ backgroundColor: `${entry.color}18`, borderColor: entry.color }}>
+                      <IconDisplay icon={entry.icon} className="h-4 w-4 object-contain" />
+                    </span>
                     <span className="truncate">{entry.name}</span>
                   </div>
                   <span className="flex shrink-0 items-center gap-3 font-medium text-slate-700">
@@ -555,13 +746,15 @@ export default function TransactionsTable({
               <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[9px] font-semibold text-slate-400" aria-label="Expense breakdown information">i</span>
             </div>
             <div className="mt-3 flex justify-center">
-              <SummaryDonut entries={categoryBreakdowns.expense} label="Expenses" />
+              <SummaryDonut entries={categoryBreakdowns.expense} label="Expenses" currency={summaryCurrency} />
             </div>
             <div className="mt-4 space-y-2">
               {categoryBreakdowns.expense.length ? categoryBreakdowns.expense.map((entry) => (
                 <div key={entry.name} className="flex items-center justify-between gap-2 text-[11px] text-slate-600">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${entry.dotClass}`} />
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border" style={{ backgroundColor: `${entry.color}18`, borderColor: entry.color }}>
+                      <IconDisplay icon={entry.icon} className="h-4 w-4 object-contain" />
+                    </span>
                     <span className="truncate">{entry.name}</span>
                   </div>
                   <span className="flex shrink-0 items-center gap-3 font-medium text-slate-700">
@@ -572,11 +765,13 @@ export default function TransactionsTable({
               )) : <div className="text-center text-[11px] text-slate-500">No expense data</div>}
             </div>
           </div>
-        </aside>
+        </aside> : null}
         </div>
       </section>
 
-      {editingTransaction ? <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} onClose={() => setEditingTransaction(null)} /> : null}
+      {editingTransaction ? (
+        <TransactionEditDialog transaction={editingTransaction} accounts={accounts} categories={categories} goals={goals} tagSuggestions={tagSuggestions} onClose={() => setEditingTransaction(null)} />
+      ) : null}
     </>
   );
 }
