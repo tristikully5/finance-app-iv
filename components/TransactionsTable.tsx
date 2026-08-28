@@ -141,11 +141,15 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
     });
   }
 
-  const labelPositions = rawLabelPositions.map((position) => ({
-    ...position,
-    labelY: adjustedLabelY.get(position.key) ?? position.labelY,
-    lineEndY: adjustedLabelY.get(position.key) ?? position.lineEndY,
-  }));
+  const labelPositions = rawLabelPositions.map((position) => {
+    const nextY = adjustedLabelY.get(position.key) ?? position.labelY;
+    return {
+      ...position,
+      labelY: nextY,
+      elbowY: nextY,
+      lineEndY: nextY,
+    };
+  });
 
   return (
     <div className="relative h-48 w-48">
