@@ -93,27 +93,28 @@ type DonutEntry = {
 
 function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; label: string; currency: string }) {
   const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+  const centerAmount = formatCurrencyNumber(total, currency);
+  const centerAmountClass = centerAmount.length > 14 ? "text-[10px]" : centerAmount.length > 10 ? "text-xs" : "text-sm";
 
-  const labelPositions = entries.map((entry, index) => {
+  const rawLabelPositions = entries.map((entry, index) => {
     const segment = total === 0 ? 0 : (entry.value / total) * 100;
     const startAngle = entries.slice(0, index).reduce((sum, previousEntry) => sum + (total === 0 ? 0 : (previousEntry.value / total) * 100), 0) * 3.6 - 90;
     const midAngle = startAngle + segment * 3.6 / 2;
     const radians = (midAngle * Math.PI) / 180;
-    const lineStartRadius = 37;
-    const elbowRadius = 48;
+    const lineStartRadius = 39;
+    const elbowRadius = 50;
     const lineStartX = 50 + Math.cos(radians) * lineStartRadius;
     const lineStartY = 50 + Math.sin(radians) * lineStartRadius;
     const elbowX = 50 + Math.cos(radians) * elbowRadius;
     const elbowY = 50 + Math.sin(radians) * elbowRadius;
     const anchor = elbowX > 50 ? "start" : "end";
-    const lineEndX = anchor === "start" ? 78 : 22;
+    const lineEndX = anchor === "start" ? 80 : 20;
     const lineEndY = Math.max(8, Math.min(92, elbowY));
-    const labelYOffset = entry.name.length > 12 ? 4 : 0;
 
     return {
       ...entry,
-      labelX: anchor === "start" ? 80 : 20,
-      labelY: lineEndY + labelYOffset,
+      labelX: anchor === "start" ? 83 : 17,
+      labelY: lineEndY,
       lineStartX,
       lineStartY,
       elbowX,
@@ -125,6 +126,26 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
       key: `${entry.name}-${index}`,
     };
   });
+
+  const adjustedLabelY = new Map<string, number>();
+  for (const anchor of ["start", "end"] as const) {
+    const positions = rawLabelPositions
+      .filter((position) => position.anchor === anchor)
+      .sort((a, b) => a.labelY - b.labelY);
+    let previousY = -Infinity;
+
+    positions.forEach((position) => {
+      const nextY = Math.min(92, Math.max(position.labelY, previousY + 13));
+      adjustedLabelY.set(position.key, nextY);
+      previousY = nextY;
+    });
+  }
+
+  const labelPositions = rawLabelPositions.map((position) => ({
+    ...position,
+    labelY: adjustedLabelY.get(position.key) ?? position.labelY,
+    lineEndY: adjustedLabelY.get(position.key) ?? position.lineEndY,
+  }));
 
   return (
     <div className="relative h-48 w-48">
@@ -145,8 +166,8 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-lg font-bold leading-tight text-slate-800">{formatCurrencyNumber(total, currency)}</span>
-        <span className="mt-1 text-[9px] text-slate-500">Total {label}</span>
+        <span className={`max-w-full whitespace-nowrap font-bold leading-tight text-slate-800 ${centerAmountClass}`}>{centerAmount}</span>
+        <span className="mt-1 whitespace-nowrap text-[9px] text-slate-500">Total {label}</span>
       </div>
 
       {labelPositions.map((item) => (
@@ -160,9 +181,9 @@ function SummaryDonut({ entries, label, currency }: { entries: DonutEntry[]; lab
             maxWidth: "34%",
           }}
         >
-          <div className="text-[10px] leading-tight text-slate-600" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
+          <div className="space-y-0.5 text-[10px] leading-tight text-slate-600" style={{ textAlign: item.anchor === "start" ? "left" : "right" }}>
             <div className="whitespace-nowrap font-semibold">{item.name}</div>
-            <div className="mt-0.5 text-[9px] text-slate-500">{item.percent}%</div>
+            <div className="whitespace-nowrap text-[9px] text-slate-500">{item.percent}%</div>
           </div>
         </div>
       ))}
