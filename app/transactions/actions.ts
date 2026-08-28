@@ -14,10 +14,17 @@ function parseAmount(value: FormDataEntryValue | null) {
 
 function parseTags(value: FormDataEntryValue | null) {
   if (typeof value !== "string") return [];
-  return value
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((tag): tag is string => typeof tag === "string").map((tag) => tag.trim()).filter(Boolean);
+    }
+  } catch {
+    // Accept legacy comma-separated values.
+  }
+
+  return value.split(",").map((tag) => tag.trim()).filter(Boolean);
 }
 
 function parseName(value: FormDataEntryValue | null) {
@@ -55,22 +62,54 @@ function isMissingColumnError(error: unknown, columnNames: string[] | string) {
   return cols.some((c) => msg.includes(c.toLowerCase()));
 }
 
+async function recalculateConcludedGoalAllocations(tx: Prisma.TransactionClient, goalId: number) {
+  const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { status: true, amountUsed: true } });
+  if (!goal || goal.status !== "Concluded") return;
+
+  const allocations = await tx.transaction.findMany({
+    where: { goalId, type: "Allocate" },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
+    select: { id: true, amount: true, allocationState: true, allocationOutcome: true, allocationOutcomeAmount: true },
+  });
+  const actualSpent = Math.max(goal.amountUsed, 0);
+
+  let remainingSpent = actualSpent;
+  for (const allocation of allocations) {
+    const originalAmount = Math.max(allocation.amount, 0);
+    const consumedAmount = Math.min(originalAmount, remainingSpent);
+    const outcome = originalAmount <= 0 ? "Cancelled" : consumedAmount > 0 ? "Spent" : "Released";
+    const outcomeAmount = originalAmount <= 0 ? 0 : consumedAmount > 0 ? consumedAmount : originalAmount;
+
+    await tx.transaction.update({
+      where: { id: allocation.id },
+      data: {
+        allocationState: "Concluded",
+        allocationOutcome: outcome,
+        allocationOutcomeAmount: outcomeAmount,
+      },
+    });
+
+    remainingSpent = Math.max(0, remainingSpent - originalAmount);
+  }
+}
+
 async function syncGoalAmountUsed(tx: Prisma.TransactionClient, goalIds: number[]) {
   const uniqueGoalIds = [...new Set(goalIds.filter((goalId) => goalId > 0))];
 
   await Promise.all(
     uniqueGoalIds.map(async (goalId) => {
+      const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { status: true } });
+      if (goal?.status === "Concluded") {
+        await recalculateConcludedGoalAllocations(tx, goalId);
+        return;
+      }
+
       const totals = await tx.transaction.aggregate({
         where: { goalId },
         _sum: { amount: true },
       });
 
-      await tx.goal.update({
-        where: { id: goalId },
-        data: {
-          amountUsed: totals._sum.amount ?? 0,
-        },
-      });
+      await tx.goal.update({ where: { id: goalId }, data: { amountUsed: totals._sum.amount ?? 0 } });
     })
   );
 }
@@ -339,7 +378,15 @@ export async function updateTransaction(formData: FormData) {
   const parsedDate = new Date(date);
   const existingTransaction = await prisma.transaction.findUnique({
     where: { id },
-    select: { goalId: true, accountId: true, toAccountId: true },
+    select: {
+      goalId: true,
+      accountId: true,
+      toAccountId: true,
+      amount: true,
+      allocationState: true,
+      allocationOutcome: true,
+      allocationOutcomeAmount: true,
+    },
   });
 
   if (selectedType === "Transfer") {
@@ -422,6 +469,10 @@ export async function updateTransaction(formData: FormData) {
     }
 
     const allocateMonthCategoryId = await ensureAutoMonthCategory(parsedDate, "Allocate");
+    const hasConclusion = existingTransaction?.allocationState === "Concluded";
+    const nextAllocationState = hasConclusion ? "Concluded" : "Allocated";
+    const nextAllocationOutcome = hasConclusion ? existingTransaction.allocationOutcome : null;
+    const nextAllocationOutcomeAmount = hasConclusion ? existingTransaction.allocationOutcomeAmount : 0;
     const needSyncGoals: number[] = [];
     await prisma.$transaction(async (tx) => {
       const goal = await tx.goal.findUnique({ where: { id: goalId }, select: { id: true } });
@@ -443,7 +494,9 @@ export async function updateTransaction(formData: FormData) {
             accountId: sourceAccountId,
             toAccountId: null,
             goalId,
-            allocationState: "Allocated",
+            allocationState: nextAllocationState,
+            allocationOutcome: nextAllocationOutcome,
+            allocationOutcomeAmount: nextAllocationOutcomeAmount,
             monthCategoryId: allocateMonthCategoryId,
           },
         });
@@ -454,7 +507,7 @@ export async function updateTransaction(formData: FormData) {
         }
 
         await prisma.$executeRaw(
-          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Allocate', "accountId" = ${sourceAccountId}, "toAccountId" = NULL, "goalId" = ${goalId}, "allocationState" = 'Allocated', "monthCategoryId" = ${allocateMonthCategoryId} WHERE "id" = ${id}`
+          Prisma.sql`UPDATE "Transaction" SET "date" = ${parsedDate}, "name" = ${name}, "amount" = ${amount}, "currency" = ${currency}, "type" = 'Allocate', "accountId" = ${sourceAccountId}, "toAccountId" = NULL, "goalId" = ${goalId}, "allocationState" = ${nextAllocationState}, "allocationOutcome" = ${nextAllocationOutcome}, "allocationOutcomeAmount" = ${nextAllocationOutcomeAmount}, "monthCategoryId" = ${allocateMonthCategoryId} WHERE "id" = ${id}`
         );
         needSyncGoals.push(existingTransaction?.goalId ?? 0, goalId);
       }

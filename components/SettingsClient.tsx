@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import IconDisplay from "./IconDisplay";
 import IconPicker from "@/components/IconPicker";
 import { updateAllocateIcon, updateTransferIcon, uploadCustomIcon } from "@/app/categories/actions";
-import { defaultAllocateColorValue, defaultAllocateIconValue, defaultIconValue, defaultTransferColorValue, defaultTransferIconValue, getCategoryTypeDefaultColorValue, getCategoryTypeDefaultIconValue, getDefaultIconValue, setCategoryTypeDefaultColorValue, setCategoryTypeDefaultIconValue, setDefaultIconValue, type IconOption } from "@/lib/icon-options";
+import { defaultAllocateColorValue, defaultAllocateIconValue, defaultExpenseColorValue, defaultIconValue, defaultIncomeColorValue, defaultTransferColorValue, defaultTransferIconValue, getCategoryTypeDefaultColorValue, getCategoryTypeDefaultIconValue, getDefaultIconValue, setCategoryTypeDefaultColorValue, setCategoryTypeDefaultIconValue, setDefaultIconValue, type IconOption } from "@/lib/icon-options";
 
 export default function SettingsClient({ initialTransferIcon = defaultTransferIconValue, initialAllocateIcon = defaultAllocateIconValue }: { initialTransferIcon?: string; initialAllocateIcon?: string }) {
   const [icons, setIcons] = useState<IconOption[]>([]);
@@ -14,8 +14,8 @@ export default function SettingsClient({ initialTransferIcon = defaultTransferIc
   const [defaultIcon, setDefaultIcon] = useState<string>(defaultIconValue);
   const [expenseIcon, setExpenseIcon] = useState<string>(defaultIconValue);
   const [incomeIcon, setIncomeIcon] = useState<string>(defaultIconValue);
-  const [expenseColor, setExpenseColor] = useState<string>(defaultTransferColorValue);
-  const [incomeColor, setIncomeColor] = useState<string>(defaultTransferColorValue);
+  const [expenseColor, setExpenseColor] = useState<string>(defaultExpenseColorValue);
+  const [incomeColor, setIncomeColor] = useState<string>(defaultIncomeColorValue);
   const [transferColor, setTransferColor] = useState<string>(defaultTransferColorValue);
   const [allocateColor, setAllocateColor] = useState<string>(defaultAllocateColorValue);
   const [transferIcon, setTransferIcon] = useState(initialTransferIcon || defaultTransferIconValue);

@@ -15,7 +15,7 @@ export default async function GoalsPage() {
     description: string | null;
     status: string;
     amountUsed: number;
-    allocations: Array<{ amount: number; type: string; allocationState?: string | null; allocationOutcomeAmount?: number | null }>;
+    allocations: Array<{ amount: number; type: string; allocationState?: string | null; allocationOutcome?: string | null; allocationOutcomeAmount?: number | null }>;
   }> = [];
   let loadError = false;
 
@@ -28,6 +28,7 @@ export default async function GoalsPage() {
             amount: true,
             type: true,
             allocationState: true,
+            allocationOutcome: true,
             allocationOutcomeAmount: true,
           },
         },

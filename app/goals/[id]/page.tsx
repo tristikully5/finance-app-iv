@@ -183,7 +183,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
 
       {/* Show amounts summary above allocations */}
       <div>
-        <GoalBudgetSummary total={goal.amount} currency={goal.currency} allocated={totalAllocated} spent={totalSpent} goalId={goal.id} />
+        <GoalBudgetSummary total={goal.amount} currency={goal.currency} allocated={totalAllocated} spent={totalSpent} goalId={goal.id} isConcluded={goal.status === "Concluded"} />
       </div>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -213,16 +213,19 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
                 const isAdded = delta >= 0;
                 const sourceName = transaction.account?.name ?? "Account";
                 const isConcluded = transaction.allocationState === "Concluded";
-                const outcomeLabel = transaction.allocationOutcome || (isConcluded ? "Concluded" : isAdded ? "Allocated" : "Used");
-                const outcomeTone = isConcluded
-                  ? transaction.allocationOutcome === "Released"
-                    ? "bg-amber-50 text-amber-700"
-                    : transaction.allocationOutcome === "Cancelled"
-                      ? "bg-slate-200 text-slate-700"
-                      : "bg-emerald-50 text-emerald-700"
-                  : isAdded
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-rose-50 text-rose-700";
+                const isPartiallySpent = transaction.allocationOutcome === "Spent" && transaction.allocationOutcomeAmount !== Math.abs(delta);
+                const outcomeLabel = isPartiallySpent ? "Partially spent" : transaction.allocationOutcome || (isConcluded ? "Concluded" : isAdded ? "Allocated" : "Used");
+                const outcomeTone = outcomeLabel === "Released"
+                  ? "bg-amber-50 text-amber-700"
+                  : outcomeLabel === "Cancelled"
+                    ? "bg-slate-200 text-slate-700"
+                    : outcomeLabel === "Partially spent"
+                      ? "bg-violet-50 text-violet-700"
+                      : outcomeLabel === "Spent"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : isAdded
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-rose-50 text-rose-700";
 
                 return (
                   <div key={transaction.id} className="grid grid-cols-[1.2fr_1.2fr_1.1fr_0.9fr_1.1fr_1.1fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-700 last:border-b-0">
@@ -243,7 +246,7 @@ export default async function GoalDetailPage({ params }: GoalDetailPageProps) {
                     </div>
 
                     <div className={`font-semibold ${isAdded ? "text-emerald-700" : "text-rose-700"}`}>
-                      {isAdded ? "+" : "-"}{formatCurrency(Math.abs(delta), goal.currency)}
+                      {isAdded ? "+" : "-"}{formatCurrency(isPartiallySpent ? transaction.allocationOutcomeAmount : Math.abs(delta), goal.currency)}
                     </div>
 
                     <div>

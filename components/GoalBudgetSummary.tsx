@@ -6,7 +6,7 @@ function formatCurrency(value: number, currency = "SGD") {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(value);
 }
 
-export default function GoalBudgetSummary({ total, currency, allocated, spent, goalId }: { total: number; currency?: string; allocated: number; spent: number; goalId?: number }) {
+export default function GoalBudgetSummary({ total, currency, allocated, spent, goalId, isConcluded = false }: { total: number; currency?: string; allocated: number; spent: number; goalId?: number; isConcluded?: boolean }) {
   const [budgeted, setBudgeted] = React.useState<number>(0);
   const [actualsSum, setActualsSum] = React.useState<number>(0);
 
@@ -86,7 +86,7 @@ export default function GoalBudgetSummary({ total, currency, allocated, spent, g
   }, [goalId, total]);
 
   // displayed spent: include actuals from budget segments if they exceed transaction-derived spent
-  const displayedSpent = Math.max(spent || 0, actualsSum || 0);
+  const displayedSpent = isConcluded ? spent : Math.max(spent || 0, actualsSum || 0);
 
   return (
     <div className="space-y-4 mb-4">

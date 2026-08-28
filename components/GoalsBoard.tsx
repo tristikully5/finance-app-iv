@@ -9,6 +9,7 @@ import { defaultIconValue } from "@/lib/icon-options";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import AmountInput from "@/components/AmountInput";
+import StandardDialog from "@/components/StandardDialog";
 
 type Goal = {
   id: number;
@@ -88,15 +89,7 @@ function GoalEditDialog({ goal, onClose }: { goal: Goal; onClose: () => void }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-950">Edit goal</h2>
-            <p className="mt-1 text-xs text-slate-500">Update the target, date, description, and progress status.</p>
-          </div>
-          <button type="button" onClick={onClose} className="text-xl leading-none text-slate-400 transition hover:text-slate-700" aria-label="Close edit goal dialog">×</button>
-        </div>
+    <StandardDialog title="Edit goal" description="Update the target, date, description, and progress status." variant="goal" onClose={onClose}>
         <form onSubmit={handleSubmit} className="space-y-5">
           <input type="hidden" name="id" value={goal.id} />
           <input type="hidden" name="amountUsed" value={goal.amountUsed} />
@@ -127,11 +120,10 @@ function GoalEditDialog({ goal, onClose }: { goal: Goal; onClose: () => void }) 
               <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3.5 5.5v7.25A1.25 1.25 0 0 0 4.75 14h6.5a1.25 1.25 0 0 0 1.25-1.25V5.5M2.5 4h11M6 4V2.5h4V4M6.5 7.25v4M9.5 7.25v4" /></svg>
               {isPending ? "Deleting..." : "Delete goal"}
             </button>
-            <button disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save changes"}</button>
+            <button type="submit" data-dialog-submit disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save changes"}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </StandardDialog>
   );
 }
 

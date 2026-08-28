@@ -204,6 +204,7 @@ export default async function AccountsPage() {
                 cardHref={`/accounts/${account.id}`}
                 modalTitle="Edit account"
                 modalDescription="Update this account for your finances."
+                modalVariant="account"
                 editContent={<AccountEditForm account={{ id: account.id, name: account.name, type: account.type, currency: account.currency, icon: account.icon || defaultIconValue }} />}
               >
                 <div className="space-y-3">

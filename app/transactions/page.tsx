@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { buildMonthKey, formatMonthLabel, parseMonthValue } from "@/lib/budgets";
-import TransactionsTable from "@/components/TransactionsTable";
+import TransactionsTable, { type TransactionItem } from "@/components/TransactionsTable";
 import { ensureMonthSnapshot } from "@/lib/month-snapshots";
 import PageHeader from "@/components/PageHeader";
+import { transactionTablePresets } from "@/components/transaction-table-presets";
 
 export const dynamic = "force-dynamic";
 
@@ -18,32 +19,16 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
   const nextMonthKey = buildMonthKey(nextMonthDate.getFullYear(), nextMonthDate.getMonth() + 1);
   const todayMonthKey = buildMonthKey(new Date().getFullYear(), new Date().getMonth() + 1);
 
-  let transactionsTableItems: Array<{
-    id: number;
-    date: string;
-    name: string;
-    description: string;
-    tags: string[];
-    amount: number;
-    currency: string;
-    type: string;
-    accountId: number;
-    toAccountId: number | null;
-    goalId: number | null;
-    monthCategoryId: number;
-    account: { id: number; name: string; icon: string | null };
-    toAccount: { id: number; name: string; icon: string | null } | null;
-    goal: { id: number; name: string; icon: string | null } | null;
-    category: { id: number; name: string; type: string; icon: string | null };
-  }> = [];
+  let transactionsTableItems: TransactionItem[] = [];
   let accounts: Array<{ id: number; name: string; icon: string | null }> = [];
   let goals: Array<{ id: number; name: string; icon: string | null }> = [];
   let typedCategories: Array<{ id: number; name: string; type: string; icon: string | null }> = [];
+  let tagSuggestions: string[] = [];
 
   try {
     await ensureMonthSnapshot(selectedMonth.key);
 
-    const [transactions, fetchedAccounts, fetchedCategories, fetchedGoals] = await Promise.all([
+    const [transactions, fetchedAccounts, fetchedCategories, fetchedGoals, taggedTransactions] = await Promise.all([
       prisma.transaction.findMany({
         where: {
           date: { gte: startOfMonth, lte: endOfMonth },
@@ -62,6 +47,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
           toAccountId: true,
           goalId: true,
           monthCategoryId: true,
+          allocationState: true,
+          allocationOutcome: true,
+          allocationOutcomeAmount: true,
           account: { select: { id: true, name: true, icon: true } },
           monthCategory: { select: { id: true, name: true, type: true, icon: true } },
           goal: { select: { id: true, name: true, icon: true } },
@@ -73,6 +61,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       }),
       prisma.goal.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, icon: true } }),
+      prisma.transaction.findMany({ select: { tags: true } }),
     ]);
 
     const accountsById = new Map(fetchedAccounts.map((account) => [account.id, account]));
@@ -90,6 +79,9 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
       toAccountId: transaction.toAccountId,
       goalId: transaction.goalId,
       monthCategoryId: transaction.monthCategoryId,
+      allocationState: transaction.allocationState,
+      allocationOutcome: transaction.allocationOutcome,
+      allocationOutcomeAmount: transaction.allocationOutcomeAmount,
       account: { id: transaction.account.id, name: transaction.account.name, icon: transaction.account.icon ?? null },
       toAccount:
         transaction.toAccountId && accountsById.get(transaction.toAccountId)
@@ -110,6 +102,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
     accounts = fetchedAccounts.map((account) => ({ id: account.id, name: account.name, icon: account.icon ?? null }));
     goals = fetchedGoals;
     typedCategories = fetchedCategories.map((category) => ({ id: category.id, name: category.name, type: category.type, icon: category.icon }));
+    tagSuggestions = [...new Set(taggedTransactions.flatMap((transaction) => transaction.tags.map((tag) => tag.trim()).filter(Boolean)))];
   } catch (error) {
     console.error("Failed to load transactions:", error);
     return (
@@ -133,11 +126,13 @@ export default async function TransactionsPage({ searchParams }: { searchParams?
         accounts={accounts}
         categories={typedCategories}
         goals={goals}
+        tagSuggestions={tagSuggestions}
         monthLabel={formatMonthLabel(selectedMonth.year, selectedMonth.month)}
         monthKey={selectedMonth.key}
         previousMonthKey={previousMonthKey}
         nextMonthKey={nextMonthKey}
         todayMonthKey={todayMonthKey}
+        preset={transactionTablePresets.full}
       />
     </div>
   );

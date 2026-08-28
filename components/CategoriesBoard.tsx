@@ -163,6 +163,7 @@ function DraggableCategorySection({ title, categories }: { title: "Expenses" | "
               cardHref={`/categories/${category.id}`}
               className="h-full min-h-0 !p-3"
               modalTitle="Edit category"
+              modalVariant="category"
               editContent={<CategoryEditForm category={{ id: category.id, name: category.name, type: category.type, icon: category.icon, sortOrder: category.sortOrder, monthlyBudget: category.monthlyBudget, monthlyBudgetCurrency: category.monthlyBudgetCurrency }} />}
             >
               <CategoryMetrics category={category} />
