@@ -79,8 +79,8 @@ function formatCurrencyLabel(value: number, currency: string) {
 }
 
 const DONUT_PALETTES = {
-  Income: ["#16a34a", "#22c55e", "#10b981", "#14b8a6", "#2dd4bf", "#34d399", "#4ade80"],
-  Expense: ["#e11d48", "#f43f5e", "#f97316", "#fb923c", "#f59e0b", "#eab308", "#84cc16"],
+  Income: ["#16a34a", "#0d9488", "#2563eb", "#7c3aed", "#db2777", "#f59e0b", "#0891b2"],
+  Expense: ["#e11d48", "#f97316", "#eab308", "#65a30d", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef"],
 };
 
 type DonutEntry = {
