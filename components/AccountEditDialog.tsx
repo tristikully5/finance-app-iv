@@ -3,6 +3,7 @@
 import { archiveAccount, updateAccount } from "@/app/accounts/actions";
 import IconPicker from "@/components/IconPicker";
 import { defaultIconValue } from "@/lib/icon-options";
+import StandardDialog from "@/components/StandardDialog";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
@@ -60,7 +61,7 @@ export function AccountEditForm({ account, onDone }: AccountEditDialogProps & { 
       <label className="account-dialog-field">Currency<select name="currency" defaultValue={account.currency}>{currencies.map((currency) => <option key={currency}>{currency}</option>)}</select></label>
       <div className="flex items-center justify-between gap-3 pt-1">
         <button type="button" onClick={handleArchive} disabled={isPending} className="rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60">Archive</button>
-        <button disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save changes"}</button>
+        <button type="submit" data-dialog-submit disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save changes"}</button>
       </div>
     </form>
   );
@@ -73,18 +74,9 @@ export default function AccountEditDialog({ account }: AccountEditDialogProps) {
     <>
       <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-sm transition hover:border-slate-300"><span aria-hidden="true">↗</span> Edit account</button>
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]" onClick={() => setOpen(false)}>
-          <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-slate-950">Edit account</h2>
-                <p className="mt-1 text-xs text-slate-500">Update this account for your finances.</p>
-              </div>
-              <button type="button" onClick={() => setOpen(false)} className="text-xl leading-none text-slate-400 transition hover:text-slate-700" aria-label="Close dialog">×</button>
-            </div>
-            <AccountEditForm account={account} onDone={() => setOpen(false)} />
-          </div>
-        </div>
+        <StandardDialog title="Edit account" description="Update this account for your finances." variant="account" onClose={() => setOpen(false)}>
+          <AccountEditForm account={account} onDone={() => setOpen(false)} />
+        </StandardDialog>
       ) : null}
     </>
   );

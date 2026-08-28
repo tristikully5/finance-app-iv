@@ -1,14 +1,19 @@
 import type { ReactNode } from "react";
 
+export type DialogVariant = "default" | "transaction" | "account" | "category" | "goal";
+
 type StandardDialogProps = {
   title: string;
   children: ReactNode;
   onClose: () => void;
   footer?: ReactNode;
   icon?: ReactNode;
+  description?: ReactNode;
+  headerContent?: ReactNode;
+  variant?: DialogVariant;
 };
 
-export default function StandardDialog({ title, children, onClose, footer, icon }: StandardDialogProps) {
+export default function StandardDialog({ title, children, onClose, footer, icon, description, headerContent, variant = "default" }: StandardDialogProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]"
@@ -16,7 +21,7 @@ export default function StandardDialog({ title, children, onClose, footer, icon 
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div data-transaction-dialog className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 border-l-4 bg-white p-5 shadow-2xl sm:p-6">
+      <div data-dialog-variant={variant} className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 border-l-4 bg-white p-5 shadow-2xl sm:p-6">
         <div className="mb-5 flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="transaction-dialog-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
@@ -26,7 +31,11 @@ export default function StandardDialog({ title, children, onClose, footer, icon 
                 </svg>
               )}
             </span>
-            <h2 className="truncate text-xl font-bold tracking-tight text-slate-950">{title}</h2>
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-bold tracking-tight text-slate-950">{title}</h2>
+              {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
+              {headerContent ? <div className="mt-3">{headerContent}</div> : null}
+            </div>
           </div>
           <button type="button" onClick={onClose} className="text-lg leading-none text-slate-400 transition hover:text-slate-700" aria-label="Close dialog">×</button>
         </div>

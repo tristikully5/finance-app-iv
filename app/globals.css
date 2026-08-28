@@ -331,62 +331,91 @@ body {
   box-shadow: 0 0 0 2px #dbeafe;
 }
 
-[data-transaction-dialog] {
-  --transaction-dialog-color: #7c3aed;
-  --transaction-dialog-soft: #f5f3ff;
-  --transaction-dialog-ring: #ede9fe;
+[data-dialog-variant] {
+  --dialog-color: #7c3aed;
+  --dialog-soft: #f5f3ff;
+  --dialog-ring: #ede9fe;
+  border-left-color: var(--dialog-color);
 }
 
-[data-transaction-dialog]:has([data-transaction-type="Income"][data-selected="true"]) {
-  --transaction-dialog-color: #16a34a;
-  --transaction-dialog-soft: #f0fdf4;
-  --transaction-dialog-ring: #dcfce7;
+[data-dialog-variant="account"] {
+  --dialog-color: #2563eb;
+  --dialog-soft: #eff6ff;
+  --dialog-ring: #dbeafe;
 }
 
-[data-transaction-dialog]:has([data-transaction-type="Expense"][data-selected="true"]) {
-  --transaction-dialog-color: #e11d48;
-  --transaction-dialog-soft: #fff1f2;
-  --transaction-dialog-ring: #ffe4e6;
+[data-dialog-variant="category"] {
+  --dialog-color: #d97706;
+  --dialog-soft: #fffbeb;
+  --dialog-ring: #fef3c7;
 }
 
-[data-transaction-dialog]:has([data-transaction-type="Transfer"][data-selected="true"]),
-[data-transaction-dialog]:has([data-transaction-type="Allocate"][data-selected="true"]) {
-  --transaction-dialog-color: #7c3aed;
-  --transaction-dialog-soft: #f5f3ff;
-  --transaction-dialog-ring: #ede9fe;
+[data-dialog-variant="category"]:has([data-category-type="Income"]) {
+  --dialog-color: #16a34a;
+  --dialog-soft: #f0fdf4;
+  --dialog-ring: #dcfce7;
 }
 
-[data-transaction-dialog] {
-  border-left-color: var(--transaction-dialog-color);
+[data-dialog-variant="category"]:has([data-category-type="Expense"]) {
+  --dialog-color: #e11d48;
+  --dialog-soft: #fff1f2;
+  --dialog-ring: #ffe4e6;
 }
 
-[data-transaction-dialog] .transaction-dialog-icon {
-  background: var(--transaction-dialog-soft);
-  color: var(--transaction-dialog-color);
+[data-dialog-variant="goal"] {
+  --dialog-color: #0891b2;
+  --dialog-soft: #ecfeff;
+  --dialog-ring: #cffafe;
 }
 
-[data-transaction-dialog] .transaction-dialog-icon svg {
+[data-dialog-variant="transaction"]:has([data-transaction-type="Income"][data-selected="true"]) {
+  --dialog-color: #16a34a;
+  --dialog-soft: #f0fdf4;
+  --dialog-ring: #dcfce7;
+}
+
+[data-dialog-variant="transaction"]:has([data-transaction-type="Expense"][data-selected="true"]) {
+  --dialog-color: #e11d48;
+  --dialog-soft: #fff1f2;
+  --dialog-ring: #ffe4e6;
+}
+
+[data-dialog-variant="transaction"]:has([data-transaction-type="Transfer"][data-selected="true"]),
+[data-dialog-variant="transaction"]:has([data-transaction-type="Allocate"][data-selected="true"]) {
+  --dialog-color: #7c3aed;
+  --dialog-soft: #f5f3ff;
+  --dialog-ring: #ede9fe;
+}
+
+[data-dialog-variant] .transaction-dialog-icon {
+  background: var(--dialog-soft);
+  color: var(--dialog-color);
+}
+
+[data-dialog-variant] .transaction-dialog-icon svg {
   stroke: currentColor;
 }
 
-[data-transaction-dialog] input:focus,
-[data-transaction-dialog] select:focus,
-[data-transaction-dialog] textarea:focus,
-[data-transaction-dialog] [data-transaction-date-trigger]:focus {
-  border-color: var(--transaction-dialog-color);
-  box-shadow: 0 0 0 2px var(--transaction-dialog-ring);
+[data-dialog-variant] input:focus,
+[data-dialog-variant] select:focus,
+[data-dialog-variant] textarea:focus,
+[data-dialog-variant] [data-transaction-date-trigger]:focus {
+  border-color: var(--dialog-color);
+  box-shadow: 0 0 0 2px var(--dialog-ring);
 }
 
-[data-transaction-dialog] [data-transaction-submit] {
-  background: var(--transaction-dialog-color);
+[data-dialog-variant] [data-dialog-submit],
+[data-dialog-variant] [data-transaction-submit] {
+  background: var(--dialog-color);
 }
 
-[data-transaction-dialog] [data-transaction-submit]:hover {
-  background: color-mix(in srgb, var(--transaction-dialog-color) 86%, #000000);
+[data-dialog-variant] [data-dialog-submit]:hover,
+[data-dialog-variant] [data-transaction-submit]:hover {
+  background: color-mix(in srgb, var(--dialog-color) 86%, #000000);
 }
 
-[data-transaction-dialog] [data-transaction-type][data-selected="true"] {
-  background: var(--transaction-dialog-soft);
-  color: var(--transaction-dialog-color);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--transaction-dialog-color) 22%, transparent);
+[data-dialog-variant="transaction"] [data-transaction-type][data-selected="true"] {
+  background: var(--dialog-soft);
+  color: var(--dialog-color);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dialog-color) 22%, transparent);
 }

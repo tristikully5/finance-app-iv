@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import StandardDialog from "@/components/StandardDialog";
+import StandardDialog, { type DialogVariant } from "@/components/StandardDialog";
 
 type QuickAddPopoverProps = {
   title: string;
@@ -9,9 +9,10 @@ type QuickAddPopoverProps = {
   buttonClassName?: string;
   buttonContent?: React.ReactNode;
   wrapperClassName?: string;
+  variant?: DialogVariant;
 };
 
-export default function QuickAddPopover({ title, children, buttonClassName, buttonContent, wrapperClassName }: QuickAddPopoverProps) {
+export default function QuickAddPopover({ title, children, buttonClassName, buttonContent, wrapperClassName, variant = "default" }: QuickAddPopoverProps) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -48,7 +49,7 @@ export default function QuickAddPopover({ title, children, buttonClassName, butt
 
       {open ? (
         <div ref={panelRef}>
-          <StandardDialog title={title} onClose={() => setOpen(false)}>
+          <StandardDialog title={title} variant={variant} onClose={() => setOpen(false)}>
             {children}
           </StandardDialog>
         </div>

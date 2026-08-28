@@ -28,7 +28,7 @@ export default function QuickAddShell({ kind, accounts = [], categories = [], go
           : "Add transaction";
 
   return (
-    <QuickAddPopover title={title} buttonClassName={buttonClassName} buttonContent={buttonContent} wrapperClassName={wrapperClassName}>
+    <QuickAddPopover title={title} variant={kind} buttonClassName={buttonClassName} buttonContent={buttonContent} wrapperClassName={wrapperClassName}>
       {kind === "account" ? (
         <QuickAddAccountForm />
       ) : kind === "category" ? (

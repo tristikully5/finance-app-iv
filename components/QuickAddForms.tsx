@@ -68,7 +68,7 @@ export function QuickAddAccountForm({ onDone }: { onDone?: () => void }) {
         </select>
       </FieldRow>
       <div className="flex justify-end pt-1">
-        <button disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
+        <button data-dialog-submit disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
           {isPending ? "Saving..." : "Save"}
         </button>
       </div>
@@ -102,7 +102,7 @@ export function CategoryFields({ defaultType, defaultName = "", defaultIcon, def
 
   const selectedDefaultIcon = defaultIcon ?? defaultCategoryIcon ?? defaultIconValue;
   return (
-    <div className="space-y-5">
+    <div data-category-type={selectedType} className="space-y-5">
       <div className="flex items-start gap-3">
         <IconPicker name="icon" defaultValue={selectedDefaultIcon} type={selectedType} />
         <div className="min-w-0 flex-1">
@@ -159,7 +159,7 @@ export function QuickAddCategoryForm({ onDone, defaultType = "Expense" }: { onDo
     <form onSubmit={handleSubmit} className="space-y-5">
       <CategoryFields defaultType={defaultType} showType={false} showBudget={defaultType === "Expense"} />
       <div className="flex justify-end pt-1">
-        <button disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save"}</button>
+        <button data-dialog-submit disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">{isPending ? "Saving..." : "Save"}</button>
       </div>
     </form>
   );
@@ -214,7 +214,7 @@ export function QuickAddGoalForm({ onDone }: { onDone?: () => void }) {
         </div>
       </FieldRow>
       <div className="flex justify-end pt-1">
-        <button disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
+        <button data-dialog-submit disabled={isPending} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
           {isPending ? "Saving..." : "Save"}
         </button>
       </div>
